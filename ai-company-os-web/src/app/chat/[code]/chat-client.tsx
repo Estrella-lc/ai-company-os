@@ -31,6 +31,7 @@ export default function ChatPage({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [backgroundPending, setBackgroundPending] = useState(false);
   const [error, setError] = useState("");
 
   const loadChat = useCallback(async () => {
@@ -78,10 +79,31 @@ export default function ChatPage({
   }, [code]);
 
   useEffect(() => {
-    loadChat();
+    const timer = setTimeout(() => { void loadChat(); }, 0);
+    return () => clearTimeout(timer);
   }, [loadChat]);
 
 
+
+  useEffect(() => {
+    if (!conversationId) return;
+    let active = true;
+    const poll = async () => {
+      try {
+        const response = await fetch('/api/conversations/' + encodeURIComponent(conversationId) + '/tasks', { cache: 'no-store' });
+        if (!response.ok || !active) return;
+        const result = await response.json();
+        const pending = result.tasks.some((task: { execution_state: string }) => ['queued', 'running'].includes(task.execution_state));
+        const history = await fetch('/api/conversations/' + encodeURIComponent(conversationId) + '/messages', { cache: 'no-store' });
+        const messagesResult = await history.json();
+        if (active && history.ok) setMessages(messagesResult.messages || []);
+        if (active) setBackgroundPending(pending);
+      } catch { /* A later poll can recover from a network interruption. */ }
+    };
+    void poll();
+    const timer = setInterval(poll, 2500);
+    return () => { active = false; clearInterval(timer); };
+  }, [conversationId]);
 
 async function sendMessage(e: React.FormEvent<HTMLFormElement>) {
   e.preventDefault();
@@ -152,88 +174,26 @@ async function sendMessage(e: React.FormEvent<HTMLFormElement>) {
       return;
     }
 
-    // 3. Request the Gemini reply
-    let replyResponse: Response;
-
-    try {
-      replyResponse = await fetch(
-        `/api/conversations/${encodeURIComponent(conversationId)}/reply`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            messageId: messageResult.message.id,
-          }),
-        }
-      );
-    } catch {
-      // The gateway may time out even if the server
-      // has already generated and saved the reply.
-      const history = await refreshMessages();
-
-      const hasReply = history.some(
-        (item: Message) =>
-          item.sender_type === "assistant" && new Date(item.created_at).getTime() >= new Date(messageResult.message.created_at).getTime()
-      );
-
-      if (!hasReply) {
-        setError(
-          "AI请求连接中断。请检查聊天记录，避免重复发送。"
-        );
-      }
-
-      return;
-    }
-
-    // 4. Read the response safely
-    const rawReply = await replyResponse.text();
-
-    let replyResult = null;
-
-    if (rawReply.trim()) {
-      try {
-        replyResult = JSON.parse(rawReply);
-      } catch {
-        // Do not assume Gemini failed.
-        // The reply may already exist in Supabase.
+        // Persist the job before waiting; this request does not run the model.
+    const queued = await fetch('/api/conversations/' + encodeURIComponent(conversationId) + '/tasks', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messageId: messageResult.message.id, requestKey: crypto.randomUUID() }),
+    });
+    const queuedResult = await queued.json();
+    if (!queued.ok) throw new Error(queuedResult.error || 'Unable to queue reply');
+    for (let attempt = 0; attempt < 120; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      const statusResponse = await fetch('/api/conversations/' + encodeURIComponent(conversationId) + '/tasks', { cache: 'no-store' });
+      if (!statusResponse.ok) throw new Error('Unable to load task status');
+      const statusResult = await statusResponse.json();
+      const task = statusResult.tasks.find((item: { id: string }) => item.id === queuedResult.taskId);
+      if (task?.execution_state === 'succeeded') { await refreshMessages(); return; }
+      if (task?.execution_state === 'failed' || task?.execution_state === 'cancelled') {
+        await refreshMessages(); throw new Error('CTO任务未完成：' + (task.last_error_code || task.execution_state));
       }
     }
-
-    // 5. Always reload the database history
-    // This prevents duplicate messages and recovers
-    // replies saved despite an incomplete HTTP response.
-    const history = await refreshMessages();
-
-    if (!replyResponse.ok) {
-      const errorMessage =
-        replyResult?.error ||
-        "AI接口未能正常返回，请检查聊天记录和服务器日志。";
-
-      const hasAssistantReply = history.some(
-        (item: Message) =>
-          item.sender_type === "assistant" && new Date(item.created_at).getTime() >= new Date(messageResult.message.created_at).getTime()
-      );
-
-      if (!hasAssistantReply) {
-        setError(errorMessage);
-      }
-
-      return;
-    }
-
-    if (
-      !replyResult?.success &&
-      !history.some(
-        (item: Message) =>
-          item.sender_type === "assistant" && new Date(item.created_at).getTime() >= new Date(messageResult.message.created_at).getTime()
-      )
-    ) {
-      setError("AI回复尚未保存，请检查服务器日志。");
-    }
-
-  } catch (err) {
+    setError('任务仍在后台处理中，可刷新页面查看进度。');
+} catch (err) {
     setError(
       err instanceof Error
         ? err.message
@@ -389,10 +349,8 @@ async function sendMessage(e: React.FormEvent<HTMLFormElement>) {
         )}
 
         <p className="text-xs text-slate-500 text-center mt-3">
-          {code === "CTO"
-            ? "CTO已接入Gemini · AI回复自动保存到Supabase"
-            : "当前高管暂未接入真实AI模型"}
-        </p>
+          {code === "CTO" ? (backgroundPending ? "CTO任务正在后台处理 · 刷新不会丢失任务" : "CTO已接入Gemini · AI回复自动保存到Supabase") : "当前高管暂未接入真实AI模型"}
+</p>
       </footer>
     </main>
   );
