@@ -1,0 +1,27 @@
+services:
+  - type: worker
+    name: ai-company-cto-worker
+    runtime: node
+    plan: 0.5c-512mb
+    region: singapore
+    numInstances: 1
+    maxShutdownDelaySeconds: 90
+    rootDir: ai-company-os-web
+    buildCommand: npm ci --omit=dev
+    startCommand: node scripts/chat-worker.mjs
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_VERSION
+        value: 22.16.0
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.8-flash
+      - key: GEMINI_FALLBACK_MODEL
+        value: gemini-3.5-flash-lite
