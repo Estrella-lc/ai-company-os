@@ -1,0 +1,2018 @@
+{
+  "projectRef": "mcwkkmkgfienxrmfyvfl",
+  "auditedAt": "2026-11-09",
+  "rls": [
+    {
+      "forced": false,
+      "enabled": true,
+      "table_name": "projects"
+    },
+    {
+      "forced": false,
+      "enabled": true,
+      "table_name": "meetings"
+    },
+    {
+      "forced": false,
+      "enabled": true,
+      "table_name": "meeting_messages"
+    },
+    {
+      "forced": false,
+      "enabled": true,
+      "table_name": "tasks"
+    },
+    {
+      "forced": false,
+      "enabled": true,
+      "table_name": "approvals"
+    },
+    {
+      "forced": false,
+      "enabled": true,
+      "table_name": "tool_executions"
+    },
+    {
+      "forced": false,
+      "enabled": true,
+      "table_name": "model_usage"
+    },
+    {
+      "forced": false,
+      "enabled": true,
+      "table_name": "audit_logs"
+    },
+    {
+      "forced": false,
+      "enabled": true,
+      "table_name": "agents"
+    },
+    {
+      "forced": false,
+      "enabled": true,
+      "table_name": "conversations"
+    },
+    {
+      "forced": false,
+      "enabled": true,
+      "table_name": "messages"
+    }
+  ],
+  "grants": [
+    {
+      "grantee": "postgres",
+      "table_name": "projects",
+      "privilege_type": "INSERT"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "projects",
+      "privilege_type": "SELECT"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "projects",
+      "privilege_type": "UPDATE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "projects",
+      "privilege_type": "DELETE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "projects",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "projects",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "projects",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "projects",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "projects",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "projects",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "projects",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "projects",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "projects",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "projects",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "projects",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "projects",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "meetings",
+      "privilege_type": "INSERT"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "meetings",
+      "privilege_type": "SELECT"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "meetings",
+      "privilege_type": "UPDATE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "meetings",
+      "privilege_type": "DELETE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "meetings",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "meetings",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "meetings",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "meetings",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "meetings",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "meetings",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "meetings",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "meetings",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "meetings",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "meetings",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "meetings",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "meetings",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "meeting_messages",
+      "privilege_type": "INSERT"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "meeting_messages",
+      "privilege_type": "SELECT"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "meeting_messages",
+      "privilege_type": "UPDATE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "meeting_messages",
+      "privilege_type": "DELETE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "meeting_messages",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "meeting_messages",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "meeting_messages",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "meeting_messages",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "meeting_messages",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "meeting_messages",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "meeting_messages",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "meeting_messages",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "meeting_messages",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "meeting_messages",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "meeting_messages",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "meeting_messages",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "tasks",
+      "privilege_type": "INSERT"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "tasks",
+      "privilege_type": "SELECT"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "tasks",
+      "privilege_type": "UPDATE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "tasks",
+      "privilege_type": "DELETE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "tasks",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "tasks",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "tasks",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "tasks",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "tasks",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "tasks",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "tasks",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "tasks",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "tasks",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "tasks",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "tasks",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "tasks",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "approvals",
+      "privilege_type": "INSERT"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "approvals",
+      "privilege_type": "SELECT"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "approvals",
+      "privilege_type": "UPDATE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "approvals",
+      "privilege_type": "DELETE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "approvals",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "approvals",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "approvals",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "approvals",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "approvals",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "approvals",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "approvals",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "approvals",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "approvals",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "approvals",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "approvals",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "approvals",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "tool_executions",
+      "privilege_type": "INSERT"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "tool_executions",
+      "privilege_type": "SELECT"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "tool_executions",
+      "privilege_type": "UPDATE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "tool_executions",
+      "privilege_type": "DELETE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "tool_executions",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "tool_executions",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "tool_executions",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "tool_executions",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "tool_executions",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "tool_executions",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "tool_executions",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "tool_executions",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "tool_executions",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "tool_executions",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "tool_executions",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "tool_executions",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "model_usage",
+      "privilege_type": "INSERT"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "model_usage",
+      "privilege_type": "SELECT"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "model_usage",
+      "privilege_type": "UPDATE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "model_usage",
+      "privilege_type": "DELETE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "model_usage",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "model_usage",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "model_usage",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "model_usage",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "model_usage",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "model_usage",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "model_usage",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "model_usage",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "model_usage",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "model_usage",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "model_usage",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "model_usage",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "audit_logs",
+      "privilege_type": "INSERT"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "audit_logs",
+      "privilege_type": "SELECT"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "audit_logs",
+      "privilege_type": "UPDATE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "audit_logs",
+      "privilege_type": "DELETE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "audit_logs",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "audit_logs",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "audit_logs",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "audit_logs",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "audit_logs",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "audit_logs",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "audit_logs",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "audit_logs",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "audit_logs",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "audit_logs",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "audit_logs",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "audit_logs",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "agents",
+      "privilege_type": "INSERT"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "agents",
+      "privilege_type": "SELECT"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "agents",
+      "privilege_type": "UPDATE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "agents",
+      "privilege_type": "DELETE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "agents",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "agents",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "agents",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "agents",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "agents",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "agents",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "agents",
+      "privilege_type": "SELECT"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "agents",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "agents",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "agents",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "agents",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "agents",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "agents",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "conversations",
+      "privilege_type": "INSERT"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "conversations",
+      "privilege_type": "SELECT"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "conversations",
+      "privilege_type": "UPDATE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "conversations",
+      "privilege_type": "DELETE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "conversations",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "conversations",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "conversations",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "conversations",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "conversations",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "conversations",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "conversations",
+      "privilege_type": "INSERT"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "conversations",
+      "privilege_type": "SELECT"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "conversations",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "conversations",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "conversations",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "conversations",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "conversations",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "conversations",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "messages",
+      "privilege_type": "INSERT"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "messages",
+      "privilege_type": "SELECT"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "messages",
+      "privilege_type": "UPDATE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "messages",
+      "privilege_type": "DELETE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "messages",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "messages",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "postgres",
+      "table_name": "messages",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "messages",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "messages",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "anon",
+      "table_name": "messages",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "messages",
+      "privilege_type": "INSERT"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "messages",
+      "privilege_type": "SELECT"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "messages",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "messages",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "authenticated",
+      "table_name": "messages",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "messages",
+      "privilege_type": "INSERT"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "messages",
+      "privilege_type": "SELECT"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "messages",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "messages",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "grantee": "service_role",
+      "table_name": "messages",
+      "privilege_type": "TRIGGER"
+    }
+  ],
+  "columns": [
+    {
+      "data_type": "uuid",
+      "table_name": "agents",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "text",
+      "table_name": "agents",
+      "column_name": "code",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "agents",
+      "column_name": "name",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "agents",
+      "column_name": "title",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "agents",
+      "column_name": "system_prompt",
+      "is_nullable": "NO",
+      "column_default": "''::text"
+    },
+    {
+      "data_type": "text",
+      "table_name": "agents",
+      "column_name": "model_provider",
+      "is_nullable": "NO",
+      "column_default": "'mock'::text"
+    },
+    {
+      "data_type": "text",
+      "table_name": "agents",
+      "column_name": "model_name",
+      "is_nullable": "NO",
+      "column_default": "'mock'::text"
+    },
+    {
+      "data_type": "boolean",
+      "table_name": "agents",
+      "column_name": "is_active",
+      "is_nullable": "NO",
+      "column_default": "true"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "agents",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "approvals",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "approvals",
+      "column_name": "project_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "approvals",
+      "column_name": "task_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "approvals",
+      "column_name": "title",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "approvals",
+      "column_name": "description",
+      "is_nullable": "NO",
+      "column_default": "''::text"
+    },
+    {
+      "data_type": "text",
+      "table_name": "approvals",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "column_default": "'pending'::text"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "approvals",
+      "column_name": "requested_by_agent_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "approvals",
+      "column_name": "decided_by",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "approvals",
+      "column_name": "decided_at",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "approvals",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "audit_logs",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "text",
+      "table_name": "audit_logs",
+      "column_name": "actor_type",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "audit_logs",
+      "column_name": "actor_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "audit_logs",
+      "column_name": "action",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "audit_logs",
+      "column_name": "resource_type",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "audit_logs",
+      "column_name": "resource_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "jsonb",
+      "table_name": "audit_logs",
+      "column_name": "details",
+      "is_nullable": "NO",
+      "column_default": "'{}'::jsonb"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "audit_logs",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "conversations",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "conversations",
+      "column_name": "project_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "conversations",
+      "column_name": "agent_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "conversations",
+      "column_name": "conversation_type",
+      "is_nullable": "NO",
+      "column_default": "'direct'::text"
+    },
+    {
+      "data_type": "text",
+      "table_name": "conversations",
+      "column_name": "title",
+      "is_nullable": "NO",
+      "column_default": "'New conversation'::text"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "conversations",
+      "column_name": "created_by",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "conversations",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "meeting_messages",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "meeting_messages",
+      "column_name": "meeting_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "meeting_messages",
+      "column_name": "agent_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "integer",
+      "table_name": "meeting_messages",
+      "column_name": "round_number",
+      "is_nullable": "NO",
+      "column_default": "1"
+    },
+    {
+      "data_type": "text",
+      "table_name": "meeting_messages",
+      "column_name": "content",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "meeting_messages",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "meetings",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "meetings",
+      "column_name": "project_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "meetings",
+      "column_name": "title",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "meetings",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "column_default": "'draft'::text"
+    },
+    {
+      "data_type": "text",
+      "table_name": "meetings",
+      "column_name": "summary",
+      "is_nullable": "NO",
+      "column_default": "''::text"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "meetings",
+      "column_name": "created_by",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "meetings",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "messages",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "messages",
+      "column_name": "conversation_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "messages",
+      "column_name": "sender_type",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "messages",
+      "column_name": "sender_agent_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "messages",
+      "column_name": "content",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "jsonb",
+      "table_name": "messages",
+      "column_name": "metadata",
+      "is_nullable": "NO",
+      "column_default": "'{}'::jsonb"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "messages",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "model_usage",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "model_usage",
+      "column_name": "agent_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "model_usage",
+      "column_name": "provider",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "model_usage",
+      "column_name": "model_name",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "integer",
+      "table_name": "model_usage",
+      "column_name": "input_tokens",
+      "is_nullable": "NO",
+      "column_default": "0"
+    },
+    {
+      "data_type": "integer",
+      "table_name": "model_usage",
+      "column_name": "output_tokens",
+      "is_nullable": "NO",
+      "column_default": "0"
+    },
+    {
+      "data_type": "numeric",
+      "table_name": "model_usage",
+      "column_name": "estimated_cost",
+      "is_nullable": "NO",
+      "column_default": "0"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "model_usage",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "projects",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "text",
+      "table_name": "projects",
+      "column_name": "code",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "projects",
+      "column_name": "name",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "projects",
+      "column_name": "description",
+      "is_nullable": "NO",
+      "column_default": "''::text"
+    },
+    {
+      "data_type": "text",
+      "table_name": "projects",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "column_default": "'planning'::text"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "projects",
+      "column_name": "created_by",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "projects",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "tasks",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "tasks",
+      "column_name": "project_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "tasks",
+      "column_name": "title",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "tasks",
+      "column_name": "description",
+      "is_nullable": "NO",
+      "column_default": "''::text"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "tasks",
+      "column_name": "assigned_agent_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "tasks",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "column_default": "'pending'::text"
+    },
+    {
+      "data_type": "text",
+      "table_name": "tasks",
+      "column_name": "priority",
+      "is_nullable": "NO",
+      "column_default": "'medium'::text"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "tasks",
+      "column_name": "due_at",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "tasks",
+      "column_name": "created_by",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "tasks",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "tool_executions",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "tool_executions",
+      "column_name": "agent_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "tool_executions",
+      "column_name": "task_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "tool_executions",
+      "column_name": "tool_name",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "tool_executions",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "column_default": "'pending'::text"
+    },
+    {
+      "data_type": "text",
+      "table_name": "tool_executions",
+      "column_name": "input_summary",
+      "is_nullable": "NO",
+      "column_default": "''::text"
+    },
+    {
+      "data_type": "text",
+      "table_name": "tool_executions",
+      "column_name": "output_summary",
+      "is_nullable": "NO",
+      "column_default": "''::text"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "tool_executions",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    }
+  ],
+  "indexes": [
+    {
+      "indexdef": "CREATE UNIQUE INDEX projects_pkey ON public.projects USING btree (id)",
+      "indexname": "projects_pkey",
+      "tablename": "projects"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX projects_code_key ON public.projects USING btree (code)",
+      "indexname": "projects_code_key",
+      "tablename": "projects"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX meetings_pkey ON public.meetings USING btree (id)",
+      "indexname": "meetings_pkey",
+      "tablename": "meetings"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX meeting_messages_pkey ON public.meeting_messages USING btree (id)",
+      "indexname": "meeting_messages_pkey",
+      "tablename": "meeting_messages"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX tasks_pkey ON public.tasks USING btree (id)",
+      "indexname": "tasks_pkey",
+      "tablename": "tasks"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX approvals_pkey ON public.approvals USING btree (id)",
+      "indexname": "approvals_pkey",
+      "tablename": "approvals"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX tool_executions_pkey ON public.tool_executions USING btree (id)",
+      "indexname": "tool_executions_pkey",
+      "tablename": "tool_executions"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX model_usage_pkey ON public.model_usage USING btree (id)",
+      "indexname": "model_usage_pkey",
+      "tablename": "model_usage"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX audit_logs_pkey ON public.audit_logs USING btree (id)",
+      "indexname": "audit_logs_pkey",
+      "tablename": "audit_logs"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX agents_pkey ON public.agents USING btree (id)",
+      "indexname": "agents_pkey",
+      "tablename": "agents"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX agents_code_key ON public.agents USING btree (code)",
+      "indexname": "agents_code_key",
+      "tablename": "agents"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX conversations_pkey ON public.conversations USING btree (id)",
+      "indexname": "conversations_pkey",
+      "tablename": "conversations"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX messages_pkey ON public.messages USING btree (id)",
+      "indexname": "messages_pkey",
+      "tablename": "messages"
+    }
+  ],
+  "policies": [
+    {
+      "cmd": "SELECT",
+      "qual": "(auth.uid() = 'b8cbf27e-2391-4fb5-b061-f1488e8c3135'::uuid)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "projects",
+      "policyname": "ceo_read_only",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(auth.uid() = 'b8cbf27e-2391-4fb5-b061-f1488e8c3135'::uuid)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "meetings",
+      "policyname": "ceo_read_only",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(auth.uid() = 'b8cbf27e-2391-4fb5-b061-f1488e8c3135'::uuid)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "meeting_messages",
+      "policyname": "ceo_read_only",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(auth.uid() = 'b8cbf27e-2391-4fb5-b061-f1488e8c3135'::uuid)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "tasks",
+      "policyname": "ceo_read_only",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(auth.uid() = 'b8cbf27e-2391-4fb5-b061-f1488e8c3135'::uuid)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "approvals",
+      "policyname": "ceo_read_only",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(auth.uid() = 'b8cbf27e-2391-4fb5-b061-f1488e8c3135'::uuid)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "tool_executions",
+      "policyname": "ceo_read_only",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(auth.uid() = 'b8cbf27e-2391-4fb5-b061-f1488e8c3135'::uuid)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "model_usage",
+      "policyname": "ceo_read_only",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(auth.uid() = 'b8cbf27e-2391-4fb5-b061-f1488e8c3135'::uuid)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "audit_logs",
+      "policyname": "ceo_read_only",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(auth.uid() = 'b8cbf27e-2391-4fb5-b061-f1488e8c3135'::uuid)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "agents",
+      "policyname": "ceo_read_only",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "conversations",
+      "policyname": "ceo_create_own_conversations",
+      "with_check": "(created_by = ( SELECT auth.uid() AS uid))"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(created_by = ( SELECT auth.uid() AS uid))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "conversations",
+      "policyname": "ceo_read_own_conversations",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(auth.uid() = 'b8cbf27e-2391-4fb5-b061-f1488e8c3135'::uuid)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "conversations",
+      "policyname": "ceo_read_only",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "messages",
+      "policyname": "ceo_create_own_user_messages",
+      "with_check": "((sender_type = 'user'::text) AND (sender_agent_id IS NULL) AND (EXISTS ( SELECT 1\n FROM conversations c\n WHERE ((c.id = messages.conversation_id) AND (c.created_by = ( SELECT auth.uid() AS uid))))))"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(EXISTS ( SELECT 1\n FROM conversations c\n WHERE ((c.id = messages.conversation_id) AND (c.created_by = ( SELECT auth.uid() AS uid)))))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "messages",
+      "policyname": "ceo_read_own_messages",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(auth.uid() = 'b8cbf27e-2391-4fb5-b061-f1488e8c3135'::uuid)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "messages",
+      "policyname": "ceo_read_only",
+      "with_check": null
+    }
+  ],
+  "triggers": null,
+  "constraints": [
+    {
+      "conname": "agents_pkey",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "agents"
+    },
+    {
+      "conname": "agents_code_key",
+      "contype": "u",
+      "definition": "UNIQUE (code)",
+      "table_name": "agents"
+    },
+    {
+      "conname": "projects_pkey",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "projects"
+    },
+    {
+      "conname": "projects_code_key",
+      "contype": "u",
+      "definition": "UNIQUE (code)",
+      "table_name": "projects"
+    },
+    {
+      "conname": "projects_created_by_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL",
+      "table_name": "projects"
+    },
+    {
+      "conname": "conversations_pkey",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "conversations"
+    },
+    {
+      "conname": "conversations_project_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE",
+      "table_name": "conversations"
+    },
+    {
+      "conname": "conversations_agent_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE SET NULL",
+      "table_name": "conversations"
+    },
+    {
+      "conname": "conversations_created_by_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL",
+      "table_name": "conversations"
+    },
+    {
+      "conname": "messages_pkey",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "messages"
+    },
+    {
+      "conname": "messages_conversation_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE",
+      "table_name": "messages"
+    },
+    {
+      "conname": "messages_sender_agent_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (sender_agent_id) REFERENCES agents(id) ON DELETE SET NULL",
+      "table_name": "messages"
+    },
+    {
+      "conname": "meetings_pkey",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "meetings"
+    },
+    {
+      "conname": "meetings_project_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE",
+      "table_name": "meetings"
+    },
+    {
+      "conname": "meetings_created_by_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL",
+      "table_name": "meetings"
+    },
+    {
+      "conname": "meeting_messages_pkey",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "meeting_messages"
+    },
+    {
+      "conname": "meeting_messages_meeting_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (meeting_id) REFERENCES meetings(id) ON DELETE CASCADE",
+      "table_name": "meeting_messages"
+    },
+    {
+      "conname": "meeting_messages_agent_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE SET NULL",
+      "table_name": "meeting_messages"
+    },
+    {
+      "conname": "tasks_pkey",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "tasks"
+    },
+    {
+      "conname": "tasks_project_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE",
+      "table_name": "tasks"
+    },
+    {
+      "conname": "tasks_assigned_agent_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (assigned_agent_id) REFERENCES agents(id) ON DELETE SET NULL",
+      "table_name": "tasks"
+    },
+    {
+      "conname": "tasks_created_by_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL",
+      "table_name": "tasks"
+    },
+    {
+      "conname": "approvals_pkey",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "approvals"
+    },
+    {
+      "conname": "approvals_project_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE",
+      "table_name": "approvals"
+    },
+    {
+      "conname": "approvals_task_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL",
+      "table_name": "approvals"
+    },
+    {
+      "conname": "approvals_requested_by_agent_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (requested_by_agent_id) REFERENCES agents(id) ON DELETE SET NULL",
+      "table_name": "approvals"
+    },
+    {
+      "conname": "approvals_decided_by_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (decided_by) REFERENCES auth.users(id) ON DELETE SET NULL",
+      "table_name": "approvals"
+    },
+    {
+      "conname": "tool_executions_pkey",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "tool_executions"
+    },
+    {
+      "conname": "tool_executions_agent_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE SET NULL",
+      "table_name": "tool_executions"
+    },
+    {
+      "conname": "tool_executions_task_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL",
+      "table_name": "tool_executions"
+    },
+    {
+      "conname": "model_usage_pkey",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "model_usage"
+    },
+    {
+      "conname": "model_usage_agent_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE SET NULL",
+      "table_name": "model_usage"
+    },
+    {
+      "conname": "audit_logs_pkey",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "audit_logs"
+    }
+  ],
+  "effectivePrivileges": {
+    "anon_truncate_tasks": true,
+    "authenticated_select_tasks": false,
+    "service_role_select_agents": false
+  },
+  "dataChecks": {
+    "tasks": [],
+    "invalid_sender_count": 0
+  }
+}
