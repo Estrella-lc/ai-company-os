@@ -1,0 +1,32 @@
+{
+  "task": {
+    "state": "succeeded",
+    "attempts": 1,
+    "lease_cleared": true
+  },
+  "usage": [
+    {
+      "model": "gemini-3.8-flash",
+      "status": "failed",
+      "input_tokens": null,
+      "output_tokens": null,
+      "estimated_cost": null
+    },
+    {
+      "model": "gemini-3.5-flash-lite",
+      "status": "completed",
+      "input_tokens": 637,
+      "output_tokens": 20,
+      "estimated_cost": null
+    }
+  ],
+  "audit": [
+    "task.queued",
+    "task.succeeded"
+  ],
+  "acl": {
+    "anon_truncate": false,
+    "browser_claim": false,
+    "browser_enqueue": true
+  }
+}
