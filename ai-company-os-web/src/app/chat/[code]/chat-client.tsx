@@ -169,10 +169,7 @@ async function sendMessage(e: React.FormEvent<HTMLFormElement>) {
 
     setInput("");
 
-    // 2. Only CTO currently has a real AI model
-    if (code !== "CTO") {
-      return;
-    }
+    // Every active executive uses the durable reply queue.
 
         // Persist the job before waiting; this request does not run the model.
     const queued = await fetch('/api/conversations/' + encodeURIComponent(conversationId) + '/tasks', {
@@ -189,7 +186,7 @@ async function sendMessage(e: React.FormEvent<HTMLFormElement>) {
       const task = statusResult.tasks.find((item: { id: string }) => item.id === queuedResult.taskId);
       if (task?.execution_state === 'succeeded') { await refreshMessages(); return; }
       if (task?.execution_state === 'failed' || task?.execution_state === 'cancelled') {
-        await refreshMessages(); throw new Error('CTO任务未完成：' + (task.last_error_code || task.execution_state));
+        await refreshMessages(); throw new Error(code + '任务未完成：' + (task.last_error_code || task.execution_state));
       }
     }
     setError('任务仍在后台处理中，可刷新页面查看进度。');
@@ -250,16 +247,8 @@ async function sendMessage(e: React.FormEvent<HTMLFormElement>) {
         </div>
 
 
-<span
-  className={`text-xs border rounded-full px-3 py-2 ${
-    code === "CTO"
-      ? "text-emerald-400 border-emerald-500/40"
-      : "text-amber-400 border-amber-500/30"
-  }`}
->
-  {code === "CTO"
-    ? "● Gemini已接入 · CTO"
-    : "○ 暂未接入真实AI模型"}
+<span className="text-xs border rounded-full px-3 py-2 text-emerald-400 border-emerald-500/40">
+  ● Gemini已接入 · {agent?.code}
 </span>
 
       </header>
@@ -334,11 +323,7 @@ async function sendMessage(e: React.FormEvent<HTMLFormElement>) {
             disabled={sending || !input.trim()}
             className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 rounded-xl px-5 py-3 text-sm"
           >
-            {sending
-              ? code === "CTO"
-                ? "CTO思考中..."
-                : "发送中..."
-              : "发送"}
+            {sending ? code + "思考中..." : "发送"}
           </button>
         </form>
 
@@ -349,7 +334,7 @@ async function sendMessage(e: React.FormEvent<HTMLFormElement>) {
         )}
 
         <p className="text-xs text-slate-500 text-center mt-3">
-          {code === "CTO" ? (backgroundPending ? "CTO任务正在后台处理 · 刷新不会丢失任务" : "CTO已接入Gemini · AI回复自动保存到Supabase") : "当前高管暂未接入真实AI模型"}
+          {backgroundPending ? code + "任务正在后台处理 · 刷新不会丢失任务" : code + "已接入Gemini · AI回复自动保存到Supabase"}
 </p>
       </footer>
     </main>
