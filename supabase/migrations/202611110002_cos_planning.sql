@@ -13,7 +13,7 @@ BEGIN
  FOR step IN SELECT value FROM jsonb_array_elements(p->'tasks') LOOP
   IF jsonb_typeof(step)<>'object' THEN RAISE EXCEPTION 'Invalid step' USING ERRCODE='22023'; END IF;
   FOREACH field IN ARRAY ARRAY['title','agent_code','instruction','acceptance'] LOOP
-   IF jsonb_typeof(step->field) IS DISTINCT FROM 'string' OR length(trim(step->>field))<1 OR length(step->>field)>CASE field WHEN 'title' THEN 120 WHEN 'agent_code' THEN 20 WHEN 'instruction' THEN 4000 ELSE 2000 END THEN RAISE EXCEPTION 'Invalid step field' USING ERRCODE='22023'; END IF;
+   IF jsonb_typeof(step->field) IS DISTINCT FROM 'string' OR length(trim(step->>field))<1 OR length(step->>field)>(CASE field WHEN 'title' THEN 120 WHEN 'agent_code' THEN 20 WHEN 'instruction' THEN 4000 ELSE 2000 END) THEN RAISE EXCEPTION 'Invalid step field' USING ERRCODE='22023'; END IF;
   END LOOP;
   agent_code:=step->>'agent_code';
   IF NOT EXISTS(SELECT 1 FROM public.agents WHERE agents.code=agent_code AND is_active) OR (p->>'mode'='direct' AND agent_code<>'COS') THEN RAISE EXCEPTION 'Unavailable assignee' USING ERRCODE='22023'; END IF;
