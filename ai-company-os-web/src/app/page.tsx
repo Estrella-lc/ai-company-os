@@ -31,7 +31,6 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState("");
-  const [instruction, setInstruction] = useState("");
 
   useEffect(() => {
     async function loadAgents() {
@@ -95,7 +94,7 @@ export default function Home() {
           {navItems.map((item) => (
             <button
               key={item}
-              onClick={() => setActive(item)}
+              onClick={() => item === '任务中心' ? router.push('/tasks') : setActive(item)}
               className={`w-full text-left rounded-xl px-3 py-3 text-sm ${
                 active === item
                   ? "bg-blue-600 text-white"
@@ -250,56 +249,10 @@ export default function Home() {
           </div>
         )}
 
-        {/* CEO command area */}
         <div className="mt-9 bg-[#151e32] border border-slate-800 rounded-2xl p-6">
-
-          <h2 className="text-xl font-semibold">
-            CEO 指令中心
-          </h2>
-
-          <p className="text-sm text-slate-400 mt-2">
-            选择一位高管，准备向其发布工作指令。
-          </p>
-
-          <div className="flex flex-wrap gap-2 mt-5">
-            {agents.map((agent) => (
-              <button
-                key={agent.code}
-                onClick={() => setSelected(agent.code)}
-                className={`px-3 py-2 rounded-lg text-xs ${
-                  selected === agent.code
-                    ? "bg-blue-600"
-                    : "bg-slate-800 text-slate-300"
-                }`}
-              >
-                {agent.code}
-              </button>
-            ))}
-          </div>
-
-          <textarea
-            value={instruction}
-            onChange={(e) => setInstruction(e.target.value)}
-            placeholder={`给${selected || "AI高管"}输入工作指令...`}
-            className="w-full mt-5 min-h-28 rounded-xl bg-[#0b1020] border border-slate-700 p-4 text-sm outline-none focus:border-blue-500"
-          />
-
-          <button
-            disabled={!instruction.trim()}
-            onClick={() =>
-              alert(
-                "目前尚未接入真实Agent对话系统，请等待下一阶段开发。"
-              )
-            }
-            className="mt-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 rounded-xl px-6 py-3 text-sm font-medium"
-          >
-            准备发送指令 →
-          </button>
-
-          <p className="text-xs text-slate-500 mt-4">
-            点击高管卡片进入独立聊天；此处指令派发尚未启用。
-          </p>
-
+          <h2 className="text-xl font-semibold">CEO 任务中心</h2>
+          <p className="text-sm text-slate-400 mt-2">将业务目标交给高管，查看文本成果并验收或退回修改。</p>
+          <button onClick={() => router.push('/tasks')} className="mt-4 bg-blue-600 rounded-xl px-6 py-3">创建和查看任务 →</button>
         </div>
 
       </section>
