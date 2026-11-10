@@ -1,3 +1,5 @@
+import { createGithubVerifier } from './github-identity.ts';
+const verifySkillIdentity=createGithubVerifier();
 // One durable task per invocation; RPC lease expiry recovers interrupted work.
 import { createClient } from "npm:@supabase/supabase-js@2.110.0";
 import { GoogleGenAI } from "npm:@google/genai@2.32.0";
@@ -5,12 +7,31 @@ const env=(name:string)=>Deno.env.get(name);
 const transient=(e:unknown)=>/timeout|timed out|deadline|503|502|500|504|429|high demand|overload/i.test(String((e as Error)?.message??e));
 export async function handle(req:Request):Promise<Response>{
  const token=env('CTO_WORKER_TOKEN');
- if(!token || req.headers.get('x-worker-token')!==token)return Response.json({error:'Unauthorized'},{status:401});
+ let skillIdentity:{runner:string;runUrl:string}|null=null;
+ if(req.headers.get('authorization')){
+  try{skillIdentity=await verifySkillIdentity(req.headers.get('authorization')!.replace(/^Bearer /,''));}
+  catch{return Response.json({error:'Unauthorized workload identity'},{status:401});}
+ }else if(!token || req.headers.get('x-worker-token')!==token)return Response.json({error:'Unauthorized'},{status:401});
  if(req.method!=='POST')return new Response(null,{status:405});
  const url=env('SUPABASE_URL'), key=env('SUPABASE_SERVICE_ROLE_KEY'), gemini=env('GEMINI_API_KEY');
  if(!url||!key||!gemini)return Response.json({error:'Worker configuration missing'},{status:503});
  const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false},global:{fetch:(input,init)=>fetch(input,{...init,signal:AbortSignal.timeout(8000)})}});
  const rpc=async(name:string,args:Record<string,unknown>={})=>{const {data,error}=await db.rpc(name,args);if(error)throw new Error(error.message);return data};
+ if(skillIdentity){
+  try{
+   const raw=await req.text();if(raw.length>200000)return Response.json({error:'Report too large'},{status:413});
+   const body=JSON.parse(raw);
+   if(body.action==='claim'){
+    const rows=await rpc('claim_skill_research',{p_runner:skillIdentity.runner}),job=rows?.[0];
+    return Response.json({job:job?{id:job.id,lease_token:job.lease_token,input:{need:job.description,query:job.input.query,capability:job.input.capability}}:null});
+   }
+   if(!['complete','fail'].includes(body.action) || !/^[0-9a-f-]{36}$/i.test(body.taskId || '') || !/^[0-9a-f-]{36}$/i.test(body.leaseToken || '') || !body.report || typeof body.report!=='object')return Response.json({error:'Invalid skill callback'},{status:400});
+   const report={...body.report,run_url:skillIdentity.runUrl};
+   if(Array.isArray(report.candidates))report.candidates=report.candidates.map((c:any)=>({...c,verification:{...c.verification,run_url:skillIdentity!.runUrl}}));
+   const success=await rpc('finish_skill_research',{p_task:body.taskId,p_token:body.leaseToken,p_runner:skillIdentity.runner,p_report:report,p_failed:body.action==='fail'});
+   return Response.json({success},{status:success?200:409});
+  }catch{return Response.json({error:'Skill callback failed'},{status:503});}
+ }
  let job:any;const usage:any[]=[];let lost=false;let timer:ReturnType<typeof setInterval>|undefined;let heartbeatBusy=false;
  try{
   await rpc('reap_expired_chat_replies');
@@ -42,3 +63,4 @@ export async function handle(req:Request):Promise<Response>{
  }finally{if(timer!==undefined)clearInterval(timer)}
 }
 Deno.serve(handle);
+
