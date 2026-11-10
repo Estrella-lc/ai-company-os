@@ -150,7 +150,7 @@ export default function Home() {
             ["AI核心角色", loading ? "..." : String(agents.length), "数据库真实记录"],
             ["在职Agent", loading ? "..." : String(activeAgents.length), "已启用角色"],
             ["预算上限", "¥200", "人民币"],
-            ["模型状态", "MOCK", "尚未接入真实模型"],
+            ["聊天模型", "Gemini", "高管独立会话 · 异步回复"],
           ].map(([label, value, detail]) => (
             <div
               key={label}
@@ -242,7 +242,7 @@ export default function Home() {
                 </div>
 
                 <div className="text-xs text-amber-400 mt-2">
-                  模型：{agent.model_provider}
+                  聊天：Gemini
                 </div>
               </button>
             ))}
@@ -297,7 +297,7 @@ export default function Home() {
           </button>
 
           <p className="text-xs text-slate-500 mt-4">
-            当前已连接真实高管数据库，但Agent模型调用与消息发送功能尚未启用。
+            点击高管卡片进入独立聊天；此处指令派发尚未启用。
           </p>
 
         </div>
