@@ -14,18 +14,18 @@ async function execute(job){
  const usage=[]; let lost=false; let heartbeatBusy=false;
  const heartbeat=setInterval(async()=>{if(heartbeatBusy)return;heartbeatBusy=true;try{if(!await rpc('heartbeat_chat_reply',{p_task:job.id,p_token:job.lease_token}))lost=true}catch{lost=true}finally{heartbeatBusy=false}},20000);
  try{
-  const [agent]=await rows('agents','id,code,is_active,system_prompt',{id:job.assigned_agent_id});
+  const [agent]=await rows('agents','id,code,title,is_active,system_prompt',{id:job.assigned_agent_id});
   const [conversation]=await rows('conversations','id,created_by,agent_id',{id:job.conversation_id});
   const [request]=await rows('messages','id,conversation_id,sender_type,content,created_at',{id:job.request_message_id});
-  if(!agent?.is_active||agent.code!=='CTO'||conversation?.created_by!==job.created_by||conversation.agent_id!==agent.id||request?.conversation_id!==conversation.id||request.sender_type!=='user')throw new Error('INVALID_TASK_BINDING');
+  if(!agent?.is_active||conversation?.created_by!==job.created_by||conversation.agent_id!==agent.id||request?.conversation_id!==conversation.id||request.sender_type!=='user')throw new Error('INVALID_TASK_BINDING');
   const {data:history,error}=await db.from('messages').select('id,sender_type,content,created_at').eq('conversation_id',conversation.id).lte('created_at',request.created_at).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(20);if(error)throw error;
-  const transcript=history.filter(m=>m.id!==request.id).reverse().map(m=>(m.sender_type==='user'?'CEO':'CTO')+': '+m.content).join('\n')+'\nCEO: '+request.content;
+  const transcript=history.filter(m=>m.id!==request.id).reverse().map(m=>(m.sender_type==='user'?'CEO':agent.code)+': '+m.content).join('\n')+'\nCEO: '+request.content;
   const models=[...new Set([process.env.GEMINI_MODEL||'gemini-3.8-flash',process.env.GEMINI_FALLBACK_MODEL||'gemini-3.5-flash-lite'])];
   let answer;
   for(let index=0;index<models.length;index++){
    if(lost)throw new Error('LEASE_LOST');const model=models[index];const start=Date.now();
    try{
-    const result=await ai.interactions.create({model,input:transcript,system_instruction:agent.system_prompt||'You are the CTO of AI Company OS. Answer the CEO in Chinese. Never claim tools were executed.',generation_config:{thinking_level:'low',max_output_tokens:2400}},{timeout_ms:index===0&&models.length>1?15000:30000,maxRetries:0});
+    const result=await ai.interactions.create({model,input:transcript,system_instruction:'You are '+agent.code+' ('+agent.title+') of AI Company OS. Answer the CEO in Chinese within your role. You have no tools or repository access; never claim actions were executed.\n'+(agent.system_prompt||''),generation_config:{thinking_level:'low',max_output_tokens:2400}},{timeout_ms:index===0&&models.length>1?15000:30000,maxRetries:0});
     usage.push({model,status:result.status,duration_ms:Date.now()-start,input_tokens:result.usage?.total_input_tokens??null,output_tokens:result.usage?.total_output_tokens??null,request_id:result.id});
     if(result.status!=='completed'||!result.output_text?.trim())throw new Error('EMPTY_RESPONSE');answer=result.output_text.trim();break;
    }catch(e){if(!usage.some(u=>u.model===model))usage.push({model,status:'failed',duration_ms:Date.now()-start,input_tokens:null,output_tokens:null});if(index===models.length-1||!transient(e))throw e;console.info('MODEL_FALLBACK',{task:job.id,model})}
