@@ -31,8 +31,8 @@ export default function TasksPage(){
  useEffect(()=>{
   let active=true;
   void fetch('/api/agents',{cache:'no-store'}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error('无法读取高管');if(active){setAgents(d.agents.filter((a:Agent)=>a.is_active));setAgentId(d.agents.find((a:Agent)=>a.code==='COS' && a.is_active)?.id || d.agents.find((a:Agent)=>a.is_active)?.id || '');}}).catch(()=>{if(active)setError('无法读取高管，请刷新页面');});
-  void load();const timer=setInterval(()=>void load(),5000);
-  return()=>{active=false;sequence.current++;clearInterval(timer);};
+  const initial=setTimeout(()=>void load(),0);const timer=setInterval(()=>void load(),5000);
+  return()=>{active=false;clearTimeout(initial);clearInterval(timer);};
  },[load]);
  const order=orders.find(w=>w.id===selected);
  const current=jobs.find(j=>j.id===order?.result.current_job_id);
