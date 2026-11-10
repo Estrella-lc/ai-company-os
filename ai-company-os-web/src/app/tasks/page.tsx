@@ -24,7 +24,7 @@ export default function TasksPage(){
    if(!response.ok) throw new Error(data.error || '无法读取任务');
    if(seq!==sequence.current)return;
    setOrders(data.orders);setJobs(data.jobs);setReplies(data.replies);
-   setSelected(old=>old || data.orders[0]?.id || '');
+   setSelected(old=>old || new URLSearchParams(window.location.search).get('task') || data.orders[0]?.id || '');
   } catch(e){if(seq===sequence.current)setError(e instanceof Error?e.message:'加载失败');}
   finally{if(seq===sequence.current)setLoading(false);}
  },[]);
@@ -53,7 +53,7 @@ export default function TasksPage(){
   }catch(e){setError(e instanceof Error?e.message:'操作失败');}finally{setBusy(false);}
  }
  return <main className="min-h-screen bg-[#0b1020] text-slate-100 p-5 md:p-9">
-  <header className="max-w-6xl mx-auto mb-6 flex items-center justify-between gap-4"><div><p className="text-xs text-slate-500">AI COMPANY OS</p><h1 className="text-2xl font-bold mt-2">任务中心</h1><p className="text-sm text-slate-400 mt-2">指定高管产出文本成果，由 CEO 验收。支持退回修改。</p></div><Link href="/" className="text-blue-400 shrink-0">返回 CEO 总部</Link></header>
+  <header className="max-w-6xl mx-auto mb-6 flex flex-wrap items-center justify-between gap-4"><div><p className="text-xs text-slate-500">AI COMPANY OS</p><h1 className="text-2xl font-bold mt-2">任务中心</h1><p className="text-sm text-slate-400 mt-2">指定高管产出文本成果，由 CEO 验收。支持退回修改。</p></div><Link href="/" className="text-blue-400 shrink-0">返回 CEO 总部</Link><Link href="/plans" className="text-blue-400 shrink-0">交给 COS 规划</Link></header>
   {error && <p role="alert" className="max-w-6xl mx-auto mb-4 rounded-lg border border-red-500 p-3 text-red-300">{error}</p>}
   <div className="max-w-6xl mx-auto grid lg:grid-cols-[340px_1fr] gap-6">
    <aside className="space-y-6">
