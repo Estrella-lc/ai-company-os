@@ -10,14 +10,13 @@ export async function GET(request:Request){
   const {data,error}=await db.from('agent_skills').select('name,document').eq('id',document).eq('created_by',user.id).single();
   return error?NextResponse.json({error:'Not found'},{status:404}):NextResponse.json(data,{headers:{'Cache-Control':'no-store'}});
  }
- const [jobs,skills,employees,heartbeat]=await Promise.all([
-  db.from('tasks').select('id,title,description,assigned_agent_id,execution_state,input,attempt_count,last_error_code,created_at,summary:result->>summary,run_url:result->>run_url,reused:result->reused').eq('created_by',user.id).eq('task_kind','skill_research').order('created_at',{ascending:false}).limit(50),
+ const [jobs,skills,employees]=await Promise.all([
+  db.from('tasks').select('id,title,description,assigned_agent_id,execution_state,input,attempt_count,last_error_code,created_at,started_at,summary:result->>summary,run_url:result->>run_url,reused:result->reused').eq('created_by',user.id).eq('task_kind','skill_research').order('created_at',{ascending:false}).limit(50),
   db.from('agent_skills').select('id,manager_agent_id,employee_id,request_task_id,repository,commit_sha,skill_path,name,description,capability,status,verification,created_at,license:metadata->>license,flags:metadata->flags,dependencies:metadata->dependencies').eq('created_by',user.id).order('created_at',{ascending:false}).limit(100),
   db.from('ai_employees').select('id,name,manager_agent_id,role,created_at').eq('created_by',user.id),
-  db.from('audit_logs').select('created_at').eq('action','skill_runner.connected').order('created_at',{ascending:false}).limit(1),
  ]);
  if(jobs.error || skills.error || employees.error)return NextResponse.json({error:'无法读取技能研究记录'},{status:503});
- return NextResponse.json({jobs:jobs.data,skills:skills.data,employees:employees.data,lastRunnerSeen:heartbeat.data?.[0]?.created_at || null},{headers:{'Cache-Control':'no-store'}});
+ return NextResponse.json({jobs:jobs.data,skills:skills.data,employees:employees.data,lastRunnerSeen:jobs.data?.map(j=>j.started_at).filter(Boolean).sort().at(-1) || null},{headers:{'Cache-Control':'no-store'}});
 }
 export async function POST(request:Request){
  const auth=await authorize();if(!auth)return NextResponse.json({error:'Unauthorized'},{status:401});
