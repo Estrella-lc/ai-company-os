@@ -41,7 +41,7 @@ export default function PlansPage(){
   catch(e){setError(e instanceof Error?e.message:'操作失败');}finally{setBusy(false);}
  }
  return <main className="min-h-screen bg-[#0b1020] text-slate-100 p-5 md:p-9">
-  <header className="max-w-6xl mx-auto mb-6"><p className="text-xs text-slate-500">AI COMPANY OS</p><h1 className="text-2xl font-bold mt-2">COS 任务规划</h1><p className="text-sm text-slate-400 mt-2">先判断处理方式，再确认分工。批准前不会启动执行任务。</p><nav className="flex gap-5 mt-3 text-blue-400"><Link href="/">CEO 总部</Link><Link href="/tasks">任务中心</Link></nav></header>
+  <header className="max-w-6xl mx-auto mb-6"><p className="text-xs text-slate-500">AI COMPANY OS</p><h1 className="text-2xl font-bold mt-2">COS 任务规划</h1><p className="text-sm text-slate-400 mt-2">先判断处理方式，再确认分工。批准前不会启动执行任务。</p><nav className="flex gap-5 mt-3 text-blue-400"><Link href="/">CEO 总部</Link><Link href="/tasks">任务中心</Link><Link href="/skills">技能研究</Link></nav></header>
   {error && <p role="alert" className="max-w-6xl mx-auto mb-4 border border-red-500 rounded-lg p-3 text-red-300">{error}</p>}
   <div className="max-w-6xl mx-auto grid lg:grid-cols-[320px_1fr] gap-6">
    <aside className="space-y-5">
@@ -63,7 +63,7 @@ export default function PlansPage(){
       <label className="block text-sm">处理方式<select disabled={approved} value={draft.mode} onChange={e=>edit({...draft,mode:e.target.value as CosPlan['mode']})} className={field+' mt-2'}>{Object.entries(modes).map(([v,label])=><option key={v} value={v}>{label}</option>)}</select></label>
       <label className="block text-sm">判断原因<textarea disabled={approved} rows={3} maxLength={2000} value={draft.reason} onChange={e=>edit({...draft,reason:e.target.value})} className={field+' mt-2'} /></label>
       <label className="block text-sm">待补充事项（每行一项，解决后可删除）<textarea disabled={approved} rows={2} value={draft.missing_information.join('\n')} onChange={e=>edit({...draft,missing_information:e.target.value.split('\n').filter(x=>x.trim())})} className={field+' mt-2'} /></label>
-      {draft.missing_information.length>0 && <p className="text-amber-300 text-sm">请先补齐资料或调整到现有能力范围，再批准。也可以补充要求后重新规划。</p>}
+      {draft.missing_information.length>0 && <p className="text-amber-300 text-sm">请先补齐资料或调整到现有能力范围，再批准。工具能力缺口会自动交给研究员。<Link href="/skills" className="text-blue-400 underline ml-2">查看技能研究</Link></p>}
       <h3 className="font-semibold">建议分工</h3>
       {draft.tasks.map((s,i)=><article key={i} className="rounded-lg border border-slate-700 p-4 space-y-3">
        <h4 className="font-semibold">步骤 {i+1}</h4>
