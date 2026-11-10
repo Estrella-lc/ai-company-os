@@ -250,9 +250,9 @@ export default function Home() {
         )}
 
         <div className="mt-9 bg-[#151e32] border border-slate-800 rounded-2xl p-6">
-          <h2 className="text-xl font-semibold">CEO 任务中心</h2>
-          <p className="text-sm text-slate-400 mt-2">将业务目标交给高管，查看文本成果并验收或退回修改。</p>
-          <button onClick={() => router.push('/tasks')} className="mt-4 bg-blue-600 rounded-xl px-6 py-3">创建和查看任务 →</button>
+          <h2 className="text-xl font-semibold">CEO 工作入口</h2>
+          <p className="text-sm text-slate-400 mt-2">先让 COS 判断处理方式和分工，确认后再启动执行。</p>
+          <button onClick={() => router.push('/plans')} className="mt-4 bg-blue-600 rounded-xl px-6 py-3">交给 COS 规划 →</button><button onClick={() => router.push('/tasks')} className="mt-4 ml-3 border border-slate-700 rounded-xl px-6 py-3">查看执行任务</button>
         </div>
 
       </section>
