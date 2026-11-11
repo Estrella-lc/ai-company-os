@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {stripTypeScriptTypes} from 'node:module';
+const source=await readFile(new URL('../../supabase/functions/cto-task-worker/media-bridge.ts',import.meta.url),'utf8');
+const {mediaBridge}=await import('data:text/javascript;base64,'+Buffer.from(stripTypeScriptTypes(source)).toString('base64'));
+const id='11111111-1111-4111-8111-111111111111',token='22222222-2222-4222-8222-222222222222',calls=[],paths=[];
+const job={id,created_by:'owner',lease_token:token,output_path:'owner/'+id+'/'+token+'/subtitled.mp4',result:{private:'never return'}};
+const rpc=async(name,args)=>{calls.push({name,args});return name==='claim_subtitle_job'?[job]:true;};
+const db={storage:{from:bucket=>{assert.equal(bucket,'company-media');return {createSignedUrl:async(path,seconds)=>{paths.push({path,seconds});return {data:{signedUrl:'https://example.invalid/read'}};},createSignedUploadUrl:async path=>{paths.push({path});return {data:{signedUrl:'https://example.invalid/upload'}};}};}}};
+const identity={runner:'123/1',runUrl:'https://github.com/Estrella-lc/ai-company-os/actions/runs/123'};
+const claimed=await (await mediaBridge(db,rpc,{action:'media_claim'},identity)).json();
+assert.deepEqual(Object.keys(claimed.job).sort(),['id','lease_token','media']);
+assert.equal(paths[0].path,'owner/'+id+'/input.mp4');assert.equal(paths[0].seconds,600);assert.equal(paths[2].path,job.output_path);
+await mediaBridge(db,rpc,{action:'media_complete',taskId:id,leaseToken:token,report:{passed:true,scope:'subtitle_delivery_v1',output_path:'other-owner/output',secret:'forged',run_url:'forged',third_party_scripts_executed:true}},identity);
+const report=calls.at(-1).args.p_report;
+assert.equal(report.output_path,undefined);assert.equal(report.secret,undefined);assert.equal(report.run_url,identity.runUrl);assert.equal(report.third_party_scripts_executed,false);
+assert.equal((await mediaBridge(db,rpc,{action:'media_complete',taskId:'bad'},identity)).status,400);
+console.log('PASS: media bridge exposes only the claimed job, signs exact paths and drops arbitrary report fields');

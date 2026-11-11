@@ -1,0 +1,25 @@
+// No user media or cloud credentials: integration fixture for the exact production adapter.
+import {mkdtemp,mkdir,writeFile,readFile,chmod} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join,resolve} from 'node:path';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {runSubtitleContainer} from './subtitle-delivery.mjs';
+const exec=promisify(execFile),work=await mkdtemp(join(tmpdir(),'subtitle-fixture-')),input=join(work,'input'),out=join(work,'out');
+await mkdir(input);
+await exec('docker',['build','-f','sandbox/subtitle/media.Dockerfile','-t','ai-company-media:local','sandbox/subtitle'],{timeout:240000,maxBuffer:1024*1024});
+await exec('docker',['run','--rm','--network','none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--entrypoint','python3','--volume',resolve('sandbox/subtitle')+':/adapter:ro','ai-company-media:local','-B','/adapter/test_media.py'],{timeout:30000});
+await chmod(input,0o777);
+await exec('docker',['run','--rm','--network','none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--entrypoint','ffmpeg','--volume',input+':/fixture:rw','ai-company-media:local','-v','error','-y','-f','lavfi','-i','color=c=blue:s=320x180:r=10','-t','3','-c:v','libx264','-threads','1','/fixture/input.mp4'],{timeout:30000});
+await writeFile(join(input,'input.srt'),'1\n00:00:00,000 --> 00:00:01,400\n你好，AI员工\n\n2\n00:00:01,500 --> 00:00:03,000\nPrivate subtitle delivery\n');
+const report=await runSubtitleContainer(input,out);
+assert.equal(report.passed,true);assert.equal(report.scope,'subtitle_delivery_v1');assert.equal(report.subtitle_cues,2);
+assert.equal(createHash('sha256').update(await readFile(join(out,'subtitled.mp4'))).digest('hex'),report.output_sha256);
+const frame=await exec('docker',['run','--rm','--network','none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--entrypoint','ffmpeg','--volume',out+':/result:ro','ai-company-media:local','-v','error','-ss','0.5','-i','/result/subtitled.mp4','-frames:v','1','-f','rawvideo','-pix_fmt','rgb24','-'],{encoding:'buffer',maxBuffer:1024*1024});
+let white=0;for(let i=0;i<frame.stdout.length;i+=3)if(frame.stdout[i]>180 && frame.stdout[i+1]>180 && frame.stdout[i+2]>180)white++;
+assert.ok(white>20,'White subtitle glyphs must be visible on the synthetic blue frame');
+await writeFile(join(input,'input.srt'),'1\n00:00:00,000 --> 00:00:01,000\n{\\an8}unsafe override\n');
+await assert.rejects(()=>runSubtitleContainer(input,join(work,'rejected')));
+console.log('PASS: actual isolated Chinese subtitle rendering, output hash, timing and malformed subtitle rejection. Synthetic fixture only: '+out);

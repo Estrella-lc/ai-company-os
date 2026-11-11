@@ -1,3 +1,4 @@
+import { mediaBridge } from './media-bridge.ts';
 import { createGithubVerifier } from './github-identity.ts';
 const verifySkillIdentity=createGithubVerifier();
 // One durable task per invocation; RPC lease expiry recovers interrupted work.
@@ -21,6 +22,7 @@ export async function handle(req:Request):Promise<Response>{
   try{
    const raw=await req.text();if(raw.length>200000)return Response.json({error:'Report too large'},{status:413});
    const body=JSON.parse(raw);
+   if(typeof body.action==='string' && body.action.startsWith('media_'))return await mediaBridge(db,rpc,body,skillIdentity);
    if(body.action==='claim'){
     const rows=await rpc('claim_skill_research',{p_runner:skillIdentity.runner}),job=rows?.[0];
     return Response.json({job:job?{id:job.id,lease_token:job.lease_token,input:{need:job.description,query:job.input.query,capability:job.input.capability}}:null});
@@ -63,4 +65,3 @@ export async function handle(req:Request):Promise<Response>{
  }finally{if(timer!==undefined)clearInterval(timer)}
 }
 Deno.serve(handle);
-
