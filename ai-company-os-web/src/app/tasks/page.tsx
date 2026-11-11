@@ -4,7 +4,7 @@ import IntegrationPanel from '../skills/integration-panel';
 import { useCallback, useEffect, useRef, useState } from 'react';
 type Agent={id:string;code:string;title:string;is_active:boolean};
 type Run={job_id:string;feedback:string|null};
-type Order={id:string;title:string;description:string;assigned_agent_id:string;conversation_id:string;input:{acceptance:string;runs:Run[]};result:{review_state:string;current_job_id:string;review_note?:string};created_at:string};
+type Order={id:string;title:string;description:string;assigned_agent_id:string;conversation_id:string;input:{acceptance:string;runs:Run[];employee_id?:string;employee_name?:string};result:{review_state:string;current_job_id:string;review_note?:string};created_at:string};
 type Job={id:string;execution_state:string;attempt_count:number;last_error_code:string|null};
 type Reply={id:string;reply_task_id:string;content:string;created_at:string};
 const field='w-full rounded-lg border border-slate-700 bg-[#0b1020] p-3 text-sm';
@@ -54,7 +54,7 @@ export default function TasksPage(){
   }catch(e){setError(e instanceof Error?e.message:'操作失败');}finally{setBusy(false);}
  }
  return <main className="min-h-screen bg-[#0b1020] text-slate-100 p-5 md:p-9">
-  <header className="max-w-6xl mx-auto mb-6 flex flex-wrap items-center justify-between gap-4"><div><p className="text-xs text-slate-500">AI COMPANY OS</p><h1 className="text-2xl font-bold mt-2">任务中心</h1><p className="text-sm text-slate-400 mt-2">指定高管产出文本成果，由 CEO 验收。支持退回修改。</p></div><Link href="/" className="text-blue-400 shrink-0">返回 CEO 总部</Link><Link href="/plans" className="text-blue-400 shrink-0">交给 COS 规划</Link></header>
+  <header className="max-w-6xl mx-auto mb-6 flex flex-wrap items-center justify-between gap-4"><div><p className="text-xs text-slate-500">AI COMPANY OS</p><h1 className="text-2xl font-bold mt-2">任务中心</h1><p className="text-sm text-slate-400 mt-2">高管组织文本执行员工交付，COS可直接处理简单任务，由 CEO 最终验收。</p></div><Link href="/" className="text-blue-400 shrink-0">返回 CEO 总部</Link><Link href="/plans" className="text-blue-400 shrink-0">交给 COS 规划</Link></header>
   <div className="max-w-6xl mx-auto"><IntegrationPanel compact/></div>
   {error && <p role="alert" className="max-w-6xl mx-auto mb-4 rounded-lg border border-red-500 p-3 text-red-300">{error}</p>}
   <div className="max-w-6xl mx-auto grid lg:grid-cols-[340px_1fr] gap-6">
@@ -66,7 +66,7 @@ export default function TasksPage(){
      <label className="block text-sm">目标与资料<textarea required maxLength={5000} rows={4} value={brief} onChange={e=>setBrief(e.target.value)} className={field+' mt-2'} placeholder="描述业务目标，并提供必要资料" /></label>
      <label className="block text-sm">验收标准<textarea required maxLength={2000} rows={3} value={acceptance} onChange={e=>setAcceptance(e.target.value)} className={field+' mt-2'} placeholder="例如：含受众、脚本和制作清单，500字以内" /></label>
      <button disabled={busy || !agentId} className="w-full bg-blue-600 rounded-lg p-3 disabled:opacity-40">{busy?'处理中...':'创建并开始执行'}</button>
-     <p className="text-xs text-slate-400">后台按分钟调度，多任务可能排队。生成成果不等于验收完成。</p>
+     <p className="text-xs text-slate-400">新任务由所选高管自动建立并分配文本执行员；COS任务直接处理。沿用按分钟调度，生成成果不等于验收完成。</p>
     </form>
     <section className="rounded-xl border border-slate-800 p-4"><h2 className="font-semibold mb-3">我的任务</h2>{loading && <p>正在读取任务...</p>}{!loading && !orders.length && <p className="text-sm text-slate-400">创建第一个任务，开始交付流程。</p>}
      <div className="space-y-2">{orders.map(w=><button key={w.id} onClick={()=>{setSelected(w.id);setNote('');setError('');}} className={'w-full text-left rounded-lg p-3 border '+(selected===w.id?'border-blue-500 bg-blue-500/10':'border-slate-800')}><span className="block font-medium break-words">{w.title}</span><span className="text-xs text-slate-400">{agents.find(a=>a.id===w.assigned_agent_id)?.code || '高管'} · {status(w,jobs)}</span></button>)}</div>
@@ -75,7 +75,8 @@ export default function TasksPage(){
    <section className="rounded-xl border border-slate-800 bg-[#151e32] p-5 min-w-0">
     {!order ? <p className="text-slate-400">选择任务查看进度和成果。</p> : <>
      <div className="flex flex-wrap justify-between gap-3"><h2 className="text-xl font-semibold break-words">{order.title}</h2><span className="text-emerald-400">{status(order,jobs)}</span></div>
-     <p className="text-sm text-slate-400 mt-2">负责人：{agents.find(a=>a.id===order.assigned_agent_id)?.code || '高管'}</p>
+     <p className="text-sm text-slate-400 mt-2">负责高管：{agents.find(a=>a.id===order.assigned_agent_id)?.code || '高管'}</p>
+     <p className="text-sm text-cyan-200 mt-2">执行：{order.input.employee_name || '高管直接处理（历史任务保持原执行方式）'}{order.input.employee_id?' · 能力：文本交付 · CEO最终验收':''}</p>
      <h3 className="font-semibold mt-5">目标与资料</h3><p className="whitespace-pre-wrap break-words mt-2 text-sm">{order.description}</p>
      <h3 className="font-semibold mt-5">验收标准</h3><p className="whitespace-pre-wrap break-words mt-2 text-sm">{order.input.acceptance}</p>
      <h3 className="font-semibold mt-6">交付记录</h3>
@@ -86,4 +87,3 @@ export default function TasksPage(){
   </div>
  </main>;
 }
-

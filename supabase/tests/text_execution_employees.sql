@@ -1,0 +1,31 @@
+BEGIN;
+DO $test$
+DECLARE ceo uuid:='b8cbf27e-2391-4fb5-b061-f1488e8c3135';a uuid;cos uuid;w uuid;k uuid:=gen_random_uuid();j uuid;j2 uuid;e uuid;token uuid:=gen_random_uuid();n int;
+BEGIN
+ PERFORM set_config('request.jwt.claim.sub',ceo::text,true);
+ SELECT id INTO a FROM public.agents WHERE code='CMO' AND is_active;
+ SELECT id INTO cos FROM public.agents WHERE code='COS' AND is_active;
+ w:=public.create_work_order('EMPLOYEE ROLLBACK TEST','Produce a brief introduction','Two clear sentences',a,k);
+ IF w IS DISTINCT FROM public.create_work_order('EMPLOYEE ROLLBACK TEST','Produce a brief introduction','Two clear sentences',a,k) THEN RAISE EXCEPTION 'Idempotency failed';END IF;
+ SELECT (input->>'employee_id')::uuid,(result->>'current_job_id')::uuid INTO e,j FROM public.tasks WHERE id=w;
+ IF e IS NULL OR NOT EXISTS(SELECT 1 FROM public.ai_employees WHERE id=e AND created_by=ceo AND manager_agent_id=a AND role='text_executor') THEN RAISE EXCEPTION 'Employee not bound';END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.tasks WHERE id=j AND input->>'employee_id'=e::text AND input->>'work_order_id'=w::text AND input->>'capability'='text_delivery_v1') THEN RAISE EXCEPTION 'Execution context missing';END IF;
+ BEGIN PERFORM private.bind_text_execution_employee(w,gen_random_uuid());RAISE EXCEPTION 'Unbound job allowed';EXCEPTION WHEN SQLSTATE '22023' THEN NULL;END;
+ UPDATE public.tasks SET execution_state='running',attempt_count=1,lease_token=token,lease_expires_at=now()+interval '90 seconds' WHERE id=j;
+ PERFORM public.complete_chat_reply(j,token,'First employee result','[]');
+ PERFORM public.review_work_order(w,j,'revise','Make it clearer');
+ SELECT (result->>'current_job_id')::uuid INTO j2 FROM public.tasks WHERE id=w;
+ IF j2=j OR NOT EXISTS(SELECT 1 FROM public.tasks WHERE id=j2 AND input->>'employee_id'=e::text AND input->>'work_order_id'=w::text) THEN RAISE EXCEPTION 'Revision lost employee binding';END IF;
+ SELECT count(*) INTO n FROM public.ai_employees WHERE created_by=ceo AND manager_agent_id=a AND role='text_executor';IF n<>1 THEN RAISE EXCEPTION 'Duplicate employee';END IF;
+ BEGIN PERFORM public.review_work_order(w,j,'accept','stale');RAISE EXCEPTION 'Stale accepted';EXCEPTION WHEN SQLSTATE '40001' THEN NULL;END;
+ UPDATE public.tasks SET execution_state='running',attempt_count=1,lease_token=token,lease_expires_at=now()+interval '90 seconds' WHERE id=j2;
+ PERFORM public.complete_chat_reply(j2,token,'Revised employee result','[]');
+ PERFORM public.review_work_order(w,j2,'accept','Verified');
+ w:=public.create_work_order('COS DIRECT TEST','Summarize supplied text','One sentence',cos,gen_random_uuid());
+ IF EXISTS(SELECT 1 FROM public.tasks WHERE id=w AND input ? 'employee_id') THEN RAISE EXCEPTION 'COS direct work delegated';END IF;
+ PERFORM set_config('request.jwt.claim.sub',gen_random_uuid()::text,true);
+ BEGIN PERFORM public.create_work_order('Unauthorized','brief','acceptance',a,gen_random_uuid());RAISE EXCEPTION 'Non-CEO allowed';EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+ IF has_function_privilege('authenticated','private.bind_text_execution_employee(uuid,uuid)','EXECUTE') OR has_table_privilege('authenticated','public.ai_employees','INSERT') THEN RAISE EXCEPTION 'Browser can forge employees';END IF;
+END $test$;
+ROLLBACK;
+SELECT 'PASS: auto recruitment, queue binding, idempotency, revision reuse, stale guard, COS direct mode and browser authorization; rolled back' AS checks;

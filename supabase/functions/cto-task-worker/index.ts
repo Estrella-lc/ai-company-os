@@ -1,4 +1,5 @@
 import { technologyBridge } from './technology-bridge.ts';
+import { textExecutionContext } from './text-execution.ts';
 import { mediaBridge } from './media-bridge.ts';
 import { createGithubVerifier } from './github-identity.ts';
 const verifySkillIdentity=createGithubVerifier();
@@ -46,20 +47,29 @@ export async function handle(req:Request):Promise<Response>{
   const {data:c,error:ce}=await db.from('conversations').select('id,created_by,agent_id').eq('id',job.conversation_id).single();
   const {data:m,error:me}=await db.from('messages').select('id,conversation_id,sender_type,content,created_at').eq('id',job.request_message_id).single();
   if(ae||ce||me||!agent?.is_active||c?.created_by!==job.created_by||c.agent_id!==agent.id||m?.conversation_id!==c.id||m.sender_type!=='user')throw new Error('INVALID_TASK_BINDING');
+  let employeeContext:ReturnType<typeof textExecutionContext>|null=null;
+  if(job.input?.employee_id){
+   const [employee,order]=await Promise.all([
+    db.from('ai_employees').select('id,created_by,manager_agent_id,name,role').eq('id',job.input.employee_id).eq('created_by',job.created_by).single(),
+    db.from('tasks').select('id,created_by,assigned_agent_id,conversation_id,input,result').eq('id',job.input.work_order_id).eq('created_by',job.created_by).eq('task_kind','work_order').single(),
+   ]);
+   if(employee.error || order.error)throw new Error('INVALID_TASK_BINDING');
+   employeeContext=textExecutionContext(job,employee.data,order.data,agent);
+  }
   const {data:h,error:he}=await db.from('messages').select('id,sender_type,content,created_at').eq('conversation_id',c.id).lte('created_at',m.created_at).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(20);if(he)throw he;
-  const input=h.filter(x=>x.id!==m.id).reverse().map(x=>(x.sender_type==='user'?'CEO':agent.code)+': '+x.content).join('\n')+'\nCEO: '+m.content;
+  const input=employeeContext?m.content:h.filter(x=>x.id!==m.id).reverse().map(x=>(x.sender_type==='user'?'CEO':agent.code)+': '+x.content).join('\n')+'\nCEO: '+m.content;
   const ai=new GoogleGenAI({apiKey:gemini});
   const models=[...new Set([env('GEMINI_MODEL')||'gemini-3.8-flash',env('GEMINI_FALLBACK_MODEL')||'gemini-3.5-flash-lite'])];let answer='';
   for(let i=0;i<models.length;i++){
    if(lost)throw new Error('LEASE_LOST');const model=models[i],start=Date.now();
    try{
-    const out=await ai.interactions.create({model,input,system_instruction:'You are '+agent.code+' ('+agent.title+') of AI Company OS. Answer the CEO in Chinese within your role. You have no tools or repository access; never claim actions were executed.\n'+(agent.system_prompt||''),generation_config:{thinking_level:'low',max_output_tokens:2400}},{timeout_ms:i===0&&models.length>1?15000:30000,maxRetries:0});
+    const out=await ai.interactions.create({model,input,system_instruction:employeeContext?.system || 'You are '+agent.code+' ('+agent.title+') of AI Company OS. Answer the CEO in Chinese within your role. You have no tools or repository access; never claim actions were executed.\n'+(agent.system_prompt||''),generation_config:{thinking_level:'low',max_output_tokens:2400}},{timeout_ms:i===0&&models.length>1?15000:30000,maxRetries:0});
     usage.push({model,status:out.status,duration_ms:Date.now()-start,input_tokens:out.usage?.total_input_tokens??null,output_tokens:out.usage?.total_output_tokens??null,request_id:out.id});
     if(out.status!=='completed'||!out.output_text?.trim())throw new Error('EMPTY_RESPONSE');answer=out.output_text.trim();break;
    }catch(e){if(!usage.some(x=>x.model===model))usage.push({model,status:'failed',duration_ms:Date.now()-start,input_tokens:null,output_tokens:null});if(i===models.length-1||!transient(e))throw e;}
   }
   if(lost)throw new Error('LEASE_LOST');
-  await rpc('complete_chat_reply',{p_task:job.id,p_token:job.lease_token,p_content:answer,p_usage:usage});
+  await rpc('complete_chat_reply',{p_task:job.id,p_token:job.lease_token,p_content:(employeeContext?.prefix || '')+answer,p_usage:usage});
   console.info('EDGE_TASK_SUCCEEDED',{task:job.id});return Response.json({status:'succeeded',taskId:job.id});
  }catch(e){
   const code=(e as Error)?.message==='INVALID_TASK_BINDING'?'invalid_binding':lost?'lease_lost':transient(e)?'provider_unavailable':'execution_failed';

@@ -1,7 +1,7 @@
 export type RecordTask = {
   id: string; title: string; assigned_agent_id?: string; manager_agent_id?: string;
   execution_state?: string; state?: string; mode?: string;
-  input?: {dependencies?: string[]; plan_id?: string};
+  input?: {dependencies?: string[]; plan_id?: string; employee_name?:string};
   result?: {review_state?: string; current_job_id?: string; work_order_id?: string; connection_status?: string; stage?: string};
   review?: {state?: string}; job?: {execution_state?: string};
 };
@@ -35,7 +35,7 @@ export function overviewRows(data:OverviewInput):OverviewRow[] {
   const rows:OverviewRow[]=orders.map(o=>{
     const assignment=assignments.find(a=>a.result?.work_order_id===o.id);
     const job=data.work?.jobs?.find(j=>j.id===o.result?.current_job_id);
-    return {key:'work:'+o.id,title:o.title,manager:o.assigned_agent_id || '',kind:'文本交付',...status(job?.execution_state,o.result?.review_state),href:'/tasks',dependencies:dependencies(assignment)};
+    return {key:'work:'+o.id,title:o.title,manager:o.assigned_agent_id || '',kind:o.input?.employee_name?'员工文本交付 · '+o.input.employee_name:'高管文本交付',...status(job?.execution_state,o.result?.review_state),href:'/tasks?task='+o.id,dependencies:dependencies(assignment)};
   });
   for(const a of assignments) {
     if(orders.some(o=>o.id===a.result?.work_order_id))continue;
