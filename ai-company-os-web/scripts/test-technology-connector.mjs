@@ -16,4 +16,5 @@ await prepareConnector();const result=await verifyPackage(pkg,manifest,bytes);as
 assert.equal((await invokePackage(pkg,manifest,{srt:'1\n00:00:00,000 --> 00:00:01,000\nOther employee'},bytes)).events[0].text,'Other employee');
 await assert.rejects(()=>invokePackage({...pkg,sha256:'f'.repeat(64)},manifest,{srt:''},bytes));
 await assert.rejects(()=>invokePackage(pkg,{...manifest,call:'os.system'}, {srt:''},bytes));
+await assert.rejects(()=>invokePackage(pkg,{...manifest,kwargs:{wrong:{input:'srt'}}},{srt:''},bytes),e=>e.connector?.error==='TypeError' && e.connector.signature.includes('text'));
 console.log('PASS: generic offline wheel installation, 8 independent timeline cases, real isolation, reuse and tamper/module rejection');

@@ -1,5 +1,5 @@
 """Generic declarative connector. Installs a pinned local wheel; never evaluates model code."""
-import contextlib,hashlib,importlib,io,json,pathlib,re,socket,subprocess,sys,zipfile,os,types
+import inspect,contextlib,hashlib,importlib,io,json,pathlib,re,socket,subprocess,sys,zipfile,os,types
 
 def member(value,path):
  if not path or path=='@':return value
@@ -8,7 +8,10 @@ def member(value,path):
   value=getattr(value,part)
  return value
 
+signature=None
+
 def run():
+ global signature
  cfg=json.loads(pathlib.Path('/request/config.json').read_text());wheel=pathlib.Path('/request')/cfg['filename'];manifest=cfg['manifest']
  if not re.fullmatch(r'[A-Za-z0-9_.+\-]+\.whl',cfg['filename']) or wheel.stat().st_size>10000000 or hashlib.sha256(wheel.read_bytes()).hexdigest()!=cfg['sha256']:raise ValueError('wheel_integrity')
  with zipfile.ZipFile(wheel) as archive:
@@ -25,6 +28,8 @@ def run():
  with contextlib.redirect_stdout(io.StringIO()),contextlib.redirect_stderr(io.StringIO()):
   module=importlib.import_module(root);function=member(module,'.'.join(manifest['call'].split('.')[1:]))
   if not callable(function):raise ValueError('call_policy')
+  try:signature=str(inspect.signature(function))[:800]
+  except (ValueError,TypeError):pass
   result=function(**{k:argument(v) for k,v in manifest['kwargs'].items()})
   collection=member(result,manifest.get('collection','@'));events=[]
   for i,item in enumerate(collection):
@@ -45,4 +50,4 @@ def run():
 try:print(json.dumps(run(),ensure_ascii=True,allow_nan=False))
 except Exception as e:
  known={'wheel_integrity','wheel_paths','module_origin','member_policy','call_policy','argument_policy','event_limit'}
- print(json.dumps({'error':str(e) if str(e) in known else type(e).__name__}));sys.exit(1)
+ print(json.dumps({'error':str(e) if str(e) in known else type(e).__name__,'signature':signature}));sys.exit(1)
