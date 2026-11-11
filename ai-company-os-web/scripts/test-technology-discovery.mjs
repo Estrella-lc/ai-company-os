@@ -9,6 +9,7 @@ function fixture(overrides={}){return async url=>{const u=new URL(url);let data;
  return new Response(JSON.stringify(data));};}
 assert.equal((await discoverTechnologies('subtitle parser',fixture())).candidates.length,1);
 for(const overrides of [{projectUrl:'https://attacker.invalid/github.com/example/tool'},{license:'UNKNOWN'},{dependencies:['requests>=2']}])assert.equal((await discoverTechnologies('subtitle parser',fixture(overrides))).candidates.length,0);
+let searches=0;const fallback=fixture();const adaptive=await discoverTechnologies('narrow query',async url=>{if(new URL(url).pathname==='/search/repositories' && ++searches===1)return new Response(JSON.stringify({items:[]}));return fallback(url);});assert.equal(adaptive.candidates.length,1);assert.equal(searches,2);
 const manifest={call:'fixturepkg.Document.read',kwargs:{text:{input:'srt'},format_:'srt'},collection:'events',fields:{text:{path:'text'},start:{path:'start',scale:0.001},end:{path:'end',scale:0.001}}};
 assert.equal(validateManifest(manifest),manifest);
 for(const bad of [{...manifest,call:'fixturepkg.__dict__.eval'},{...manifest,kwargs:{x:{source:'print(1)'}}},{...manifest,collection:'__class__'},{...manifest,fields:{...manifest.fields,start:{path:'start',scale:Infinity}}}])assert.throws(()=>validateManifest(bad));

@@ -2,8 +2,9 @@ import {createHash} from 'node:crypto';
 const repoPattern=/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 export async function publicJson(url,fetcher=fetch){const u=new URL(url);if(u.protocol!=='https:' || !['api.github.com','pypi.org'].includes(u.hostname))throw new Error('source_host');const r=await fetcher(u,{headers:{'User-Agent':'AI-Company-OS-Technology-Research','Accept':'application/json'},redirect:'error',signal:AbortSignal.timeout(15000)});if(!r.ok)throw new Error('source_http_'+r.status);const text=await r.text();if(text.length>2000000)throw new Error('source_size');return JSON.parse(text);}
 export async function discoverTechnologies(query,fetcher=fetch){
- const trace=[],candidates=[];const search=await publicJson('https://api.github.com/search/repositories?q='+encodeURIComponent(query+' archived:false')+'&sort=stars&per_page=8',fetcher);
+ const trace=[],candidates=[],seen=new Set();for(const searchQuery of [...new Set([query,'SRT library language:Python','subtitle manipulation language:Python'])]){const search=await publicJson('https://api.github.com/search/repositories?q='+encodeURIComponent(searchQuery+' archived:false')+'&sort=stars&per_page=8',fetcher);
  for(const repo of (search.items || []).filter(r=>!r.private && !r.archived && repoPattern.test(r.full_name) && r.stargazers_count>=25).slice(0,5)){
+  if(seen.has(repo.full_name))continue;seen.add(repo.full_name);
   try{
    const commit=await publicJson('https://api.github.com/repos/'+repo.full_name+'/commits/'+encodeURIComponent(repo.default_branch),fetcher);if(!/^[0-9a-f]{40}$/.test(commit.sha))throw new Error('commit_pin');
    const readme=await publicJson('https://api.github.com/repos/'+repo.full_name+'/readme?ref='+commit.sha,fetcher);if(readme.encoding!=='base64')throw new Error('readme_encoding');const document=Buffer.from(readme.content,'base64').toString('utf8').slice(0,30000);
@@ -21,6 +22,8 @@ export async function discoverTechnologies(query,fetcher=fetch){
    }
   }catch(e){trace.push({repository:repo.full_name,blocked:String(e.message)});}
   if(candidates.length>=3)break;
+ }
+ if(candidates.length)break;
  }
  return {candidates,trace,query};
 }
