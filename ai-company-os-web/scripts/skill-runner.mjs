@@ -4,6 +4,7 @@ import {resolve,join} from 'node:path';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {discoverSkills} from './skill-discovery.mjs';
+import {runDevelopment} from './development-runner.mjs';
 import {runSubtitleDelivery} from './subtitle-delivery.mjs';
 const exec=promisify(execFile),root=resolve('.');
 const endpoint='https://mcwkkmkgfienxrmfyvfl.supabase.co/functions/v1/cto-task-worker?skill_runner=1';
@@ -16,9 +17,9 @@ async function identity(){
  const r=await fetch(url,{headers:{Authorization:'Bearer '+requestToken},signal:AbortSignal.timeout(15000),redirect:'error'});
  if(!r.ok)throw new Error('Could not obtain workload identity');return (await r.json()).value;
 }
-async function api(body){
+async function api(body,timeout=20000){
  const token=await identity();
- const r=await fetch(endpoint,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(20000),redirect:'error'});
+ const r=await fetch(endpoint,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(timeout),redirect:'error'});
  const data=await r.json();if(!r.ok)throw new Error(data.error || 'Skill callback failed');return data;
 }
 async function sandbox(documents,out){
@@ -35,6 +36,7 @@ const evidence=resolve(process.env.RUNNER_TEMP || tmpdir(),'ai-company-skill-evi
 try{
  await mkdir(evidence,{recursive:true});
  if(sandboxOnly){console.log(JSON.stringify(await sandbox(['First-party fixture test'],join(evidence,'sandbox'))));process.exit(0);}
+ if(!fixture){const development=(await api({action:'dev_claim'})).job;if(development){await runDevelopment(development,api);process.exit(0);}}
  if(!fixture){const delivery=(await api({action:'media_claim'})).job;if(delivery){await runSubtitleDelivery(delivery,api);process.exit(0);}}
  job=fixture?{id:'local-fixture',input:{query:'subtitle agent skills',capability:'subtitles'}}:(await api({action:'claim'})).job;
  if(!job){console.log('No eligible skill research job.');process.exit(0);}

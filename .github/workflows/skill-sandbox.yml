@@ -19,6 +19,9 @@ jobs:
             ai-company-os-web/scripts/skill-runner.mjs
             ai-company-os-web/scripts/skill-discovery.mjs
             ai-company-os-web/scripts/subtitle-delivery.mjs
+            ai-company-os-web/scripts/development-runner.mjs
+            ai-company-os-web/scripts/development-contract.mjs
+            sandbox/development
             sandbox/subtitle
           sparse-checkout-cone-mode: false
       - name: Search, inspect and validate one capability

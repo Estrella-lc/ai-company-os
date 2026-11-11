@@ -14,7 +14,7 @@ export async function GET(request:Request){
  const [jobs,skills,employees]=await Promise.all([
   db.from('tasks').select('id,title,description,assigned_agent_id,execution_state,input,attempt_count,last_error_code,created_at,started_at,finished_at,result,summary:result->>summary,run_url:result->>run_url,reused:result->reused').eq('created_by',user.id).eq('task_kind','skill_research').order('created_at',{ascending:false}).limit(50),
   db.from('agent_skills').select('id,manager_agent_id,employee_id,request_task_id,repository,commit_sha,skill_path,name,description,capability,status,verification,created_at,license:metadata->>license,flags:metadata->flags,dependencies:metadata->dependencies').eq('created_by',user.id).order('created_at',{ascending:false}).limit(100),
-  db.from('ai_employees').select('id,name,manager_agent_id,role,created_at').eq('created_by',user.id),
+  db.from('ai_employees').select('id,name,manager_agent_id,role,created_at').eq('created_by',user.id).eq('role','skill_researcher'),
  ]);
  if(jobs.error || skills.error || employees.error)return NextResponse.json({error:'无法读取技能研究记录'},{status:503});
  const safeJobs=jobs.data?.map(({result,...job})=>({...job,sample:job.execution_state==='succeeded'?skillSample(result):null}));
