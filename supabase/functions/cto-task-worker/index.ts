@@ -1,3 +1,4 @@
+import { developmentBridge } from './development-bridge.ts';
 import { mediaBridge } from './media-bridge.ts';
 import { createGithubVerifier } from './github-identity.ts';
 const verifySkillIdentity=createGithubVerifier();
@@ -22,6 +23,7 @@ export async function handle(req:Request):Promise<Response>{
   try{
    const raw=await req.text();if(raw.length>200000)return Response.json({error:'Report too large'},{status:413});
    const body=JSON.parse(raw);
+   if(typeof body.action==='string' && body.action.startsWith('dev_'))return await developmentBridge(db,rpc,body,skillIdentity,{key:gemini,models:[...new Set([env('GEMINI_MODEL')||'gemini-3.8-flash',env('GEMINI_FALLBACK_MODEL')||'gemini-3.5-flash-lite'])]});
    if(typeof body.action==='string' && body.action.startsWith('media_'))return await mediaBridge(db,rpc,body,skillIdentity);
    if(body.action==='claim'){
     const rows=await rpc('claim_skill_research',{p_runner:skillIdentity.runner}),job=rows?.[0];
