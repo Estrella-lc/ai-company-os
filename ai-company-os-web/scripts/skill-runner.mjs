@@ -3,6 +3,7 @@ import {tmpdir} from 'node:os';
 import {resolve,join} from 'node:path';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
+import {runTechnology} from './technology-runner.mjs';
 import {discoverSkills} from './skill-discovery.mjs';
 import {runSubtitleDelivery} from './subtitle-delivery.mjs';
 const exec=promisify(execFile),root=resolve('.');
@@ -16,9 +17,9 @@ async function identity(){
  const r=await fetch(url,{headers:{Authorization:'Bearer '+requestToken},signal:AbortSignal.timeout(15000),redirect:'error'});
  if(!r.ok)throw new Error('Could not obtain workload identity');return (await r.json()).value;
 }
-async function api(body){
+async function api(body,timeout=20000){
  const token=await identity();
- const r=await fetch(endpoint,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(20000),redirect:'error'});
+ const r=await fetch(endpoint,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(timeout),redirect:'error'});
  const data=await r.json();if(!r.ok)throw new Error(data.error || 'Skill callback failed');return data;
 }
 async function sandbox(documents,out){
@@ -38,6 +39,7 @@ try{
  if(!fixture){const delivery=(await api({action:'media_claim'})).job;if(delivery){await runSubtitleDelivery(delivery,api);process.exit(0);}}
  job=fixture?{id:'local-fixture',input:{query:'subtitle agent skills',capability:'subtitles'}}:(await api({action:'claim'})).job;
  if(!job){console.log('No eligible skill research job.');process.exit(0);}
+ if(job.input.mode?.startsWith('technology_')){await runTechnology(job,api);process.exit(0);}
  const report=await discoverSkills(job.input);
  const compatible=report.candidates.filter(c=>!c.rejected && /^(MIT|Apache-2\.0|BSD-2-Clause|BSD-3-Clause|ISC)$/.test(c.metadata.license) && /subtitle|caption|\bsrt\b/i.test(c.document+'\n'+c.metadata.references.map(r=>r.content || '').join('\n')));
  if(job.input.capability==='subtitles' && compatible.length){

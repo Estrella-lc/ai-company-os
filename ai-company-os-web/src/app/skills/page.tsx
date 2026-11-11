@@ -1,5 +1,6 @@
 "use client";
 import Link from 'next/link';
+import IntegrationPanel from './integration-panel';
 import SampleDelivery,{type Sample} from './sample-delivery';
 import {useCallback,useEffect,useRef,useState} from 'react';
 type Agent={id:string;code:string;title:string;is_active:boolean};
@@ -19,6 +20,7 @@ export default function SkillsPage(){
  async function download(skill:Skill){try{const r=await fetch('/api/skills?document='+skill.id,{cache:'no-store'}),d=await r.json();if(!r.ok)throw new Error('无法下载技能说明');const url=URL.createObjectURL(new Blob([d.document],{type:'text/markdown;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download=skill.name.replace(/[^a-z0-9-]/gi,'-')+'-SKILL.md';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){setError(e instanceof Error?e.message:'下载失败');}}
  return <main className="min-h-screen bg-[#0b1020] text-slate-100 p-5 md:p-9"><div className="max-w-6xl mx-auto">
   <header className="mb-6"><p className="text-xs text-slate-500">AI COMPANY OS</p><h1 className="text-2xl font-bold mt-2">技能研究与验证</h1><p className="text-slate-400 text-sm mt-2">高管提出能力缺口，研究员查找固定版本技能，用运行证据确认可用范围。</p><nav className="flex flex-wrap gap-5 text-blue-400 mt-3"><Link href="/">CEO 总部</Link><Link href="/plans">COS 规划</Link><Link href="/tasks">任务中心</Link><Link href="/subtitles">字幕交付</Link></nav></header>
+  <IntegrationPanel/>
   {error && <p role="alert" className="border border-red-500 rounded-lg p-3 text-red-300 mb-4">{error}</p>}
   <p className="text-xs text-slate-400 mb-5">{lastSeen?'执行器最近连接：'+new Date(lastSeen).toLocaleString():'执行器尚无连接记录；任务会保留在队列中。'} 自动调度按2小时检查，每天最多领取3次研究任务。</p>
   <div className="grid lg:grid-cols-[320px_1fr] gap-6"><aside className="space-y-5">

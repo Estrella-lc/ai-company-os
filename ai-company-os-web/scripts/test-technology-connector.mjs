@@ -1,0 +1,19 @@
+// Calibration wheel is first-party test data only; it is never published as a mature company tool.
+import {mkdtemp,readFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
+import {createHash} from 'node:crypto';
+import assert from 'node:assert/strict';
+import {prepareConnector,verifyPackage,invokePackage} from './technology-runner.mjs';
+const exec=promisify(execFile),dir=await mkdtemp(join(tmpdir(),'connector-calibration-')),filename='companyfixture-1.0-py3-none-any.whl';
+const source=`import re,types\nclass Document:\n @classmethod\n def read(cls,text,format_='srt'):\n  events=[]\n  text=text.lstrip('\\ufeff').replace('\\r\\n','\\n').strip()\n  if text:\n   for b in re.split(r'\\n\\s*\\n',text):\n    lines=b.splitlines(); t=lines[1].split(' --> ')\n    def seconds(x):\n     h,m,s,ms=map(int,re.split(r'[:,]',x));return h*3600+m*60+s+ms/1000\n    events.append(types.SimpleNamespace(text='\\n'.join(lines[2:]),start=seconds(t[0]),end=seconds(t[1])))\n  return types.SimpleNamespace(events=events)\n`;
+const files={'companyfixture/__init__.py':source,'companyfixture-1.0.dist-info/METADATA':'Metadata-Version: 2.1\nName: companyfixture\nVersion: 1.0\n','companyfixture-1.0.dist-info/WHEEL':'Wheel-Version: 1.0\nRoot-Is-Purelib: true\nTag: py3-none-any\n'};files['companyfixture-1.0.dist-info/RECORD']=Object.keys(files).map(p=>p+',,').join('\n')+'\ncompanyfixture-1.0.dist-info/RECORD,,\n';
+await exec('python3',['-c','import sys,json,zipfile; z=zipfile.ZipFile(sys.argv[1],"w"); [z.writestr(k,v) for k,v in json.loads(sys.argv[2]).items()]; z.close()',join(dir,filename),JSON.stringify(files)]);
+const bytes=await readFile(join(dir,filename)),pkg={filename,sha256:createHash('sha256').update(bytes).digest('hex')},manifest={call:'companyfixture.Document.read',kwargs:{text:{input:'srt'},format_:'srt'},collection:'events',fields:{text:{path:'text'},start:{path:'start'},end:{path:'end'}}};
+await prepareConnector();const result=await verifyPackage(pkg,manifest,bytes);assert.equal(result.passed,true,JSON.stringify(result));assert.equal(result.passed_count,8);assert.equal(result.isolation_passed,true);
+assert.equal((await invokePackage(pkg,manifest,{srt:'1\n00:00:00,000 --> 00:00:01,000\nOther employee'},bytes)).events[0].text,'Other employee');
+await assert.rejects(()=>invokePackage({...pkg,sha256:'f'.repeat(64)},manifest,{srt:''},bytes));
+await assert.rejects(()=>invokePackage(pkg,{...manifest,call:'os.system'}, {srt:''},bytes));
+console.log('PASS: generic offline wheel installation, 8 independent timeline cases, real isolation, reuse and tamper/module rejection');
