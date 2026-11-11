@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { skillSample } from '@/lib/skill-sample';
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 async function authorize(){const db=await createClient();const {data:{user}}=await db.auth.getUser();if(!user)return null;const {data:ceo}=await db.rpc('is_company_ceo',{p_user:user.id});return ceo?{db,user}:null;}
 export async function GET(request:Request){
@@ -11,12 +12,21 @@ export async function GET(request:Request){
   return error?NextResponse.json({error:'Not found'},{status:404}):NextResponse.json(data,{headers:{'Cache-Control':'no-store'}});
  }
  const [jobs,skills,employees]=await Promise.all([
-  db.from('tasks').select('id,title,description,assigned_agent_id,execution_state,input,attempt_count,last_error_code,created_at,started_at,summary:result->>summary,run_url:result->>run_url,reused:result->reused').eq('created_by',user.id).eq('task_kind','skill_research').order('created_at',{ascending:false}).limit(50),
+  db.from('tasks').select('id,title,description,assigned_agent_id,execution_state,input,attempt_count,last_error_code,created_at,started_at,finished_at,result,summary:result->>summary,run_url:result->>run_url,reused:result->reused').eq('created_by',user.id).eq('task_kind','skill_research').order('created_at',{ascending:false}).limit(50),
   db.from('agent_skills').select('id,manager_agent_id,employee_id,request_task_id,repository,commit_sha,skill_path,name,description,capability,status,verification,created_at,license:metadata->>license,flags:metadata->flags,dependencies:metadata->dependencies').eq('created_by',user.id).order('created_at',{ascending:false}).limit(100),
   db.from('ai_employees').select('id,name,manager_agent_id,role,created_at').eq('created_by',user.id),
  ]);
  if(jobs.error || skills.error || employees.error)return NextResponse.json({error:'无法读取技能研究记录'},{status:503});
- return NextResponse.json({jobs:jobs.data,skills:skills.data,employees:employees.data,lastRunnerSeen:jobs.data?.map(j=>j.started_at).filter(Boolean).sort().at(-1) || null},{headers:{'Cache-Control':'no-store'}});
+ const safeJobs=jobs.data?.map(({result,...job})=>({...job,sample:job.execution_state==='succeeded'?skillSample(result):null}));
+ return NextResponse.json({jobs:safeJobs,skills:skills.data,employees:employees.data,lastRunnerSeen:jobs.data?.map(j=>j.started_at).filter(Boolean).sort().at(-1) || null},{headers:{'Cache-Control':'no-store'}});
+}
+export async function PATCH(request:Request){
+ const auth=await authorize();if(!auth)return NextResponse.json({error:'Unauthorized'},{status:401});
+ let b;try{b=await request.json();}catch{return NextResponse.json({error:'请求格式错误'},{status:400});}
+ if(!b || !uuid.test(b.taskId || '') || !['accept','revise'].includes(b.action) || typeof b.note!=='string' || b.note.length>2000 || (b.action==='revise' && !b.note.trim()))return NextResponse.json({error:'退回时请填写意见，最多2000字'},{status:400});
+ const {error}=await auth.db.rpc('review_skill_sample',{p_task:b.taskId,p_action:b.action,p_note:b.note});
+ if(error)return NextResponse.json({error:'样例尚未就绪或状态已变化，请刷新后重试'},{status:409});
+ return NextResponse.json({success:true});
 }
 export async function POST(request:Request){
  const auth=await authorize();if(!auth)return NextResponse.json({error:'Unauthorized'},{status:401});
@@ -26,4 +36,3 @@ export async function POST(request:Request){
  if(error)return NextResponse.json({error:'研究请求未创建，请检查负责人、关联计划或当日请求上限'},{status:409});
  return NextResponse.json({id},{status:201});
 }
-
