@@ -1,8 +1,6 @@
 name: Skill research sandbox
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '17 */2 * * *'
 permissions:
   contents: read
   id-token: write
@@ -20,6 +18,7 @@ jobs:
           sparse-checkout: |
             ai-company-os-web/scripts/skill-runner.mjs
             ai-company-os-web/scripts/skill-discovery.mjs
+            ai-company-os-web/scripts/subtitle-delivery.mjs
             sandbox/subtitle
           sparse-checkout-cone-mode: false
       - name: Search, inspect and validate one capability
@@ -32,4 +31,3 @@ jobs:
           path: ${{ runner.temp }}/ai-company-skill-evidence
           if-no-files-found: ignore
           retention-days: 1
-

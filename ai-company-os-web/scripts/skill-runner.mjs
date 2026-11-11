@@ -4,6 +4,7 @@ import {resolve,join} from 'node:path';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {discoverSkills} from './skill-discovery.mjs';
+import {runSubtitleDelivery} from './subtitle-delivery.mjs';
 const exec=promisify(execFile),root=resolve('.');
 const endpoint='https://mcwkkmkgfienxrmfyvfl.supabase.co/functions/v1/cto-task-worker?skill_runner=1';
 const fixture=process.argv.includes('--fixture'),sandboxOnly=process.argv.includes('--sandbox-only');
@@ -34,6 +35,7 @@ const evidence=resolve(process.env.RUNNER_TEMP || tmpdir(),'ai-company-skill-evi
 try{
  await mkdir(evidence,{recursive:true});
  if(sandboxOnly){console.log(JSON.stringify(await sandbox(['First-party fixture test'],join(evidence,'sandbox'))));process.exit(0);}
+ if(!fixture){const delivery=(await api({action:'media_claim'})).job;if(delivery){await runSubtitleDelivery(delivery,api);process.exit(0);}}
  job=fixture?{id:'local-fixture',input:{query:'subtitle agent skills',capability:'subtitles'}}:(await api({action:'claim'})).job;
  if(!job){console.log('No eligible skill research job.');process.exit(0);}
  const report=await discoverSkills(job.input);
@@ -55,4 +57,3 @@ try{
  if(job && !fixture)try{await api({action:'fail',taskId:job.id,leaseToken:job.lease_token,report:{summary:'研究或验证执行失败，将在预算与次数限制内重试。',error:String(e.message).slice(0,500)}});}catch{console.error('FAIL_CALLBACK_UNAVAILABLE');}
  process.exitCode=1;
 }
-
