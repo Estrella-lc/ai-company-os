@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {stripTypeScriptTypes} from 'node:module';
+const source=await readFile(new URL('../src/lib/skill-sample.ts',import.meta.url),'utf8');
+const {skillSample}=await import('data:text/javascript;base64,'+Buffer.from(stripTypeScriptTypes(source)).toString('base64'));
+const r={run_url:'https://github.com/Estrella-lc/ai-company-os/actions/runs/123',candidates:[{verification:{passed:true,scope:'subtitle_fixture_v1',output_sha256:'a'.repeat(64),duration:3,subtitle_cues:2}}],sample_review:{state:'accepted',note:'fixture',reviewed_at:'2026-11-11T00:00:00Z'}};
+assert.equal(skillSample(r).files[0],'sandbox/subtitled.mp4');
+assert.equal(skillSample(r).review.state,'accepted');
+for(const bad of [null,{}, {...r,run_url:'javascript:alert(1)'},{...r,run_url:r.run_url+'/../../other'},{...r,candidates:[{verification:{passed:true,scope:'static_review_only',output_sha256:'a'.repeat(64)}}]},{...r,candidates:[{verification:{passed:true,scope:'subtitle_fixture_v1',output_sha256:'bad'}}]},{...r,candidates:[]}])assert.equal(skillSample(bad),null);
+console.log('PASS: only scoped, hash-backed artifacts from the trusted repository are exposed');
