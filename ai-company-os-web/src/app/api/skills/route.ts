@@ -17,7 +17,7 @@ export async function GET(request:Request){
   db.from('ai_employees').select('id,name,manager_agent_id,role,created_at').eq('created_by',user.id),
  ]);
  if(jobs.error || skills.error || employees.error)return NextResponse.json({error:'无法读取技能研究记录'},{status:503});
- const safeJobs=jobs.data?.map(({result,...job})=>({...job,sample:job.execution_state==='succeeded'?skillSample(result):null}));
+ const safeJobs=jobs.data?.filter(j=>!j.input?.mode?.startsWith('technology_')).map(({result,...job})=>({...job,sample:job.execution_state==='succeeded'?skillSample(result):null}));
  return NextResponse.json({jobs:safeJobs,skills:skills.data,employees:employees.data,lastRunnerSeen:jobs.data?.map(j=>j.started_at).filter(Boolean).sort().at(-1) || null},{headers:{'Cache-Control':'no-store'}});
 }
 export async function PATCH(request:Request){

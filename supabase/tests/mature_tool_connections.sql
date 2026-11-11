@@ -1,0 +1,34 @@
+BEGIN;
+DO $test$
+DECLARE ceo uuid:='b8cbf27e-2391-4fb5-b061-f1488e8c3135'; manager uuid; other uuid; third uuid; j uuid; k uuid:=gen_random_uuid(); c public.tasks; report jsonb; integration uuid; reused uuid; invocation uuid;
+BEGIN
+ PERFORM set_config('request.jwt.claim.sub',ceo::text,true);
+ SELECT id INTO manager FROM public.agents WHERE code='CTO';SELECT id INTO other FROM public.agents WHERE code='CFO';SELECT id INTO third FROM public.agents WHERE code='CPO';
+ j:=public.request_tool_connection(manager,'漫剧字幕解析成熟技术',k);
+ IF public.request_tool_connection(manager,'重复',k) IS DISTINCT FROM j OR public.request_tool_connection(other,'另一高管的相同需求',gen_random_uuid()) IS DISTINCT FROM j THEN RAISE EXCEPTION 'Duplicate search not reused';END IF;
+ UPDATE public.tasks SET available_at=now()+interval '1 day' WHERE task_kind='skill_research' AND execution_state='queued' AND id<>j;
+ UPDATE public.audit_logs SET created_at=now()-interval '2 days' WHERE action IN ('skill_research.claimed','subtitle.claimed') AND created_at>=date_trunc('day',now());
+ SELECT * INTO c FROM public.claim_skill_research('930001/1');IF c.id IS DISTINCT FROM j THEN RAISE EXCEPTION 'Technology task not claimed';END IF;
+ IF EXISTS(SELECT 1 FROM public.technology_task_context(j,gen_random_uuid(),'930001/1')) OR NOT EXISTS(SELECT 1 FROM public.technology_task_context(j,c.lease_token,'930001/1')) THEN RAISE EXCEPTION 'Planning lease broken';END IF;
+ report:=jsonb_build_object('connection_status','connected','summary','rollback calibration only','repository','example/fixture','commit_sha',repeat('a',40),'license','MIT','package',jsonb_build_object('name','fixture','version','1.0','sha256',repeat('b',64)),'manifest',jsonb_build_object('call','fixture.parse'),'verification',jsonb_build_object('passed',true,'profile','subtitle_timeline_v1','isolation_passed',true,'case_count',8,'passed_count',1));
+ BEGIN PERFORM public.finish_technology_task(j,c.lease_token,'930001/1',report,'https://github.com/Estrella-lc/ai-company-os/actions/runs/123');RAISE EXCEPTION 'Partial test pass registered';EXCEPTION WHEN invalid_parameter_value THEN NULL;END;
+ report:=jsonb_set(report,'{verification,passed_count}','8');
+ IF public.finish_technology_task(j,gen_random_uuid(),'930001/1',report,'https://github.com/Estrella-lc/ai-company-os/actions/runs/123') THEN RAISE EXCEPTION 'Wrong lease accepted';END IF;
+ PERFORM public.finish_technology_task(j,c.lease_token,'930001/1',report,'https://github.com/Estrella-lc/ai-company-os/actions/runs/123');PERFORM public.finish_technology_task(j,c.lease_token,'930001/1',report,'https://github.com/Estrella-lc/ai-company-os/actions/runs/123');
+ SELECT id INTO integration FROM public.company_integrations WHERE request_task_id=j;
+ IF (SELECT count(*) FROM public.company_integrations WHERE request_task_id=j)<>1 THEN RAISE EXCEPTION 'Connection duplicated';END IF;
+ reused:=public.request_tool_connection(other,'CFO复用公司连接',gen_random_uuid());
+ IF NOT EXISTS(SELECT 1 FROM public.tasks WHERE id=reused AND execution_state='succeeded' AND attempt_count=0 AND result->>'connection_status'='reused') THEN RAISE EXCEPTION 'Cross-manager reuse failed';END IF;
+ invocation:=public.request_tool_connection(third,'CPO调用共享字幕解析',gen_random_uuid(),integration,E'1\n00:00:00,000 --> 00:00:01,000\nHello');
+ SELECT * INTO c FROM public.claim_skill_research('930002/1');IF c.id IS DISTINCT FROM invocation THEN RAISE EXCEPTION 'Invocation not queued';END IF;
+ PERFORM public.finish_technology_task(invocation,c.lease_token,'930002/1','{"connection_status":"executed","events":[{"text":"Hello","start":0,"end":1}]}','https://github.com/Estrella-lc/ai-company-os/actions/runs/124');
+ IF NOT EXISTS(SELECT 1 FROM public.tasks WHERE id=invocation AND execution_state='succeeded' AND result->>'integration_id'=integration::text) THEN RAISE EXCEPTION 'Shared invocation lost';END IF;
+ PERFORM set_config('request.jwt.claim.sub',gen_random_uuid()::text,true);
+ BEGIN PERFORM public.request_tool_connection(manager,'Unauthorized',gen_random_uuid());RAISE EXCEPTION 'Non CEO request';EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+ IF has_function_privilege('authenticated','public.finish_technology_task(uuid,uuid,text,jsonb,text,boolean)','EXECUTE') OR has_table_privilege('authenticated','public.company_integrations','INSERT') THEN RAISE EXCEPTION 'Browser write permission';END IF;
+END $test$;
+SET LOCAL ROLE authenticated;
+DO $$ BEGIN IF EXISTS(SELECT 1 FROM public.company_integrations) THEN RAISE EXCEPTION 'Cross-owner library leak';END IF;END $$;
+RESET ROLE;
+ROLLBACK;
+SELECT 'PASS: duplicate search prevention, planning lease, real-test gate, idempotency, company-wide reuse, invocation and RLS; rolled back' AS checks;

@@ -1,3 +1,4 @@
+import { technologyBridge } from './technology-bridge.ts';
 import { mediaBridge } from './media-bridge.ts';
 import { createGithubVerifier } from './github-identity.ts';
 const verifySkillIdentity=createGithubVerifier();
@@ -22,10 +23,12 @@ export async function handle(req:Request):Promise<Response>{
   try{
    const raw=await req.text();if(raw.length>200000)return Response.json({error:'Report too large'},{status:413});
    const body=JSON.parse(raw);
+   if(typeof body.action==='string' && body.action.startsWith('technology_'))return await technologyBridge(db,rpc,body,skillIdentity,{key:gemini,models:[...new Set([env('GEMINI_MODEL')||'gemini-3.8-flash',env('GEMINI_FALLBACK_MODEL')||'gemini-3.5-flash-lite'])]});
    if(typeof body.action==='string' && body.action.startsWith('media_'))return await mediaBridge(db,rpc,body,skillIdentity);
    if(body.action==='claim'){
     const rows=await rpc('claim_skill_research',{p_runner:skillIdentity.runner}),job=rows?.[0];
-    return Response.json({job:job?{id:job.id,lease_token:job.lease_token,input:{need:job.description,query:job.input.query,capability:job.input.capability}}:null});
+    let integration=null;if(job?.input?.mode==='technology_execute'){const r=await db.from('company_integrations').select('package,manifest').eq('id',job.input.integration_id).eq('created_by',job.created_by).eq('status','available').single();if(r.error)return Response.json({error:'Shared connection unavailable'},{status:409});integration=r.data;}
+    return Response.json({job:job?{id:job.id,lease_token:job.lease_token,input:{need:job.description,query:job.input.query,capability:job.input.capability,mode:job.input.mode,profile:job.input.profile,srt:job.input.mode==='technology_execute'?job.input.srt:undefined},integration}:null});
    }
    if(!['complete','fail'].includes(body.action) || !/^[0-9a-f-]{36}$/i.test(body.taskId || '') || !/^[0-9a-f-]{36}$/i.test(body.leaseToken || '') || !body.report || typeof body.report!=='object')return Response.json({error:'Invalid skill callback'},{status:400});
    const report={...body.report,run_url:skillIdentity.runUrl};
