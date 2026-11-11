@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {textExecutionContext} from '../../supabase/functions/cto-task-worker/text-execution.ts';
+const job={id:'job',created_by:'ceo',assigned_agent_id:'manager',conversation_id:'chat',input:{employee_id:'employee',work_order_id:'order',capability:'text_delivery_v1'}};
+const employee={id:'employee',created_by:'ceo',manager_agent_id:'manager',name:'CMO 文本执行员',role:'text_executor'};
+const order={id:'order',created_by:'ceo',assigned_agent_id:'manager',conversation_id:'chat',input:{employee_id:'employee',capability:'text_delivery_v1'},result:{current_job_id:'job'}};
+const manager={id:'manager',code:'CMO'};
+assert.match(textExecutionContext(job,employee,order,manager).prefix,/CMO 文本执行员/);
+for(const bad of [{...employee,created_by:'another-company'},{...employee,manager_agent_id:'other'},{...employee,role:'skill_researcher'},null])assert.throws(()=>textExecutionContext(job,bad,order,manager),/INVALID_TASK_BINDING/);
+for(const bad of [{...order,result:{current_job_id:'stale'}},{...order,conversation_id:'other'},{...order,created_by:'other'},{...order,input:{employee_id:'forged',capability:'text_delivery_v1'}},null])assert.throws(()=>textExecutionContext(job,employee,bad,manager),/INVALID_TASK_BINDING/);
+assert.throws(()=>textExecutionContext({...job,input:{...job.input,capability:'arbitrary_tool'}},employee,order,manager),/INVALID_TASK_BINDING/);
+console.log('PASS: employee identity, company/manager/conversation binding, stale execution and bounded capability');
