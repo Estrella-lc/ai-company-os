@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {overviewRows} from '../src/lib/overview-model.ts';
+const input={work:{orders:[{id:'one',title:'前置成果',result:{current_job_id:'j1',review_state:'pending'}}],jobs:[{id:'j1',execution_state:'succeeded'}]},planning:{assignments:[{id:'a',title:'前置',result:{work_order_id:'one'},input:{dependencies:[]}},{id:'b',title:'后续',input:{dependencies:['a']}}]}};
+let rows=overviewRows(input);
+assert.equal(rows.length,2,'started assignments must not duplicate the work order');
+assert.equal(rows.find(r=>r.key==='work:one').state,'review','generated output is not accepted');
+assert.equal(rows.find(r=>r.key==='assignment:b').state,'blocked','generation does not release dependencies');
+input.work.orders[0].result.review_state='accepted';
+rows=overviewRows(input);
+assert.equal(rows.find(r=>r.key==='assignment:b').state,'ready');
+assert.equal(rows.find(r=>r.key==='assignment:b').dependencies[0].accepted,true);
+assert.equal(overviewRows({planning:{assignments:[{id:'missing',title:'Missing',result:{work_order_id:'out-of-window'}}]}})[0].state,'unknown');
+assert.equal(overviewRows({integrations:{jobs:[{id:'blocked',title:'No connection',execution_state:'succeeded',result:{connection_status:'blocked'}}]}})[0].state,'blocked','finished research must not become a fake usable capability');
+assert.equal(overviewRows({media:{jobs:[{id:'video',title:'Video',state:'succeeded',review:{state:'pending'}}]}})[0].state,'review');
+assert.equal(overviewRows({research:{jobs:[{id:'r',title:'Research',execution_state:'succeeded'}]}})[0].label,'研究完成（非业务验收）');
+assert.deepEqual(overviewRows({}),[]);
+console.log('PASS: accepted dependency gates, duplicate suppression, blocked connections, missing records and distinct delivery/research states');
