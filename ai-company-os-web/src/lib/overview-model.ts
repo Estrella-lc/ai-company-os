@@ -1,14 +1,14 @@
 export type RecordTask = {
   id: string; title: string; assigned_agent_id?: string; manager_agent_id?: string;
   execution_state?: string; state?: string; mode?: string;
-  input?: {dependencies?: string[]; plan_id?: string; employee_name?:string};
+  input?: {dependencies?: string[]; plan_id?: string; employee_name?:string;quality_required?:boolean};
   result?: {review_state?: string; current_job_id?: string; work_order_id?: string; connection_status?: string; stage?: string};
   review?: {state?: string}; job?: {execution_state?: string};
 };
 export type Agent = {id:string;code:string;title:string;is_active:boolean};
 export type Employee = {id:string;name:string;manager_agent_id:string;role:string};
 export type OverviewInput = {
-  work?: {orders?:RecordTask[];jobs?:RecordTask[]};
+  work?: {orders?:RecordTask[];jobs?:RecordTask[];quality?:{source_job_id:string;report:{verdict:string}|null;job?:{execution_state:string}}[]};
   planning?: {plans?:RecordTask[];assignments?:RecordTask[];workOrders?:RecordTask[]};
   research?: {jobs?:RecordTask[];employees?:Employee[]};
   media?: {jobs?:RecordTask[]}; integrations?: {jobs?:RecordTask[];connections?:{id:string;name:string;status:string}[]};
@@ -35,7 +35,10 @@ export function overviewRows(data:OverviewInput):OverviewRow[] {
   const rows:OverviewRow[]=orders.map(o=>{
     const assignment=assignments.find(a=>a.result?.work_order_id===o.id);
     const job=data.work?.jobs?.find(j=>j.id===o.result?.current_job_id);
-    return {key:'work:'+o.id,title:o.title,manager:o.assigned_agent_id || '',kind:o.input?.employee_name?'员工文本交付 · '+o.input.employee_name:'高管文本交付',...status(job?.execution_state,o.result?.review_state),href:'/tasks?task='+o.id,dependencies:dependencies(assignment)};
+    const q=data.work?.quality?.find(q=>q.source_job_id===o.result?.current_job_id);
+    let state=status(job?.execution_state,o.result?.review_state);
+    if(o.input?.quality_required && job?.execution_state==='succeeded' && o.result?.review_state!=='accepted')state=q?.report?.verdict==='pass'?{state:'review',phase:3,label:'质检通过，待CEO验收'}:q?.report?.verdict==='needs_human'?{state:'review',phase:3,label:'质检需人工核实'}:q?.report?.verdict==='revise'?{state:'blocked',phase:2,label:'质检未通过，需返工'}:q?.job?.execution_state==='failed'?{state:'failed',phase:2,label:'质检执行失败'}:{state:'running',phase:2,label:'独立质检排队 / 执行'};
+    return {key:'work:'+o.id,title:o.title,manager:o.assigned_agent_id || '',kind:o.input?.employee_name?'员工文本交付 · '+o.input.employee_name:'高管文本交付',...state,href:'/tasks?task='+o.id,dependencies:dependencies(assignment)};
   });
   for(const a of assignments) {
     if(orders.some(o=>o.id===a.result?.work_order_id))continue;
