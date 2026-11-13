@@ -1,0 +1,33 @@
+BEGIN;
+DO $test$
+DECLARE ceo uuid:='b8cbf27e-2391-4fb5-b061-f1488e8c3135'; manager uuid; w uuid; source uuid; revised uuid; repaired uuid; q public.quality_reviews; q2 public.quality_reviews; token uuid:=gen_random_uuid(); report jsonb; old_snapshot jsonb; request uuid;
+BEGIN
+ PERFORM set_config('request.jwt.claim.sub',ceo::text,true);
+ SELECT id INTO manager FROM public.agents WHERE code='CPO' AND is_active;
+ w:=public.create_work_order('QUALITY EVIDENCE ROLLBACK','介绍合成测试产品，价格尚未提供','一句话，40字内，价格有资料依据',manager,gen_random_uuid());
+ SELECT (result->>'current_job_id')::uuid INTO source FROM public.tasks WHERE id=w;
+ UPDATE public.tasks SET execution_state='running',attempt_count=1,lease_token=token,lease_expires_at=now()+interval '90 seconds' WHERE id=source;
+ PERFORM public.complete_chat_reply(source,token,'等待价格确认。','[]');
+ SELECT * INTO q FROM public.quality_reviews WHERE source_job_id=source;
+ IF q.snapshot->>'execution_request_message_id' IS DISTINCT FROM (SELECT request_message_id::text FROM public.tasks WHERE id=source) OR q.snapshot->>'execution_request' NOT LIKE '%价格尚未提供%' THEN RAISE EXCEPTION 'Initial request not pinned';END IF;
+ old_snapshot:=q.snapshot;
+ PERFORM public.review_work_order(w,source,'revise','合成测试固定事实：价格为人民币99元，产品用途是演示文本交付。');
+ SELECT (result->>'current_job_id')::uuid INTO revised FROM public.tasks WHERE id=w;
+ SELECT request_message_id INTO request FROM public.tasks WHERE id=revised;
+ UPDATE public.tasks SET execution_state='running',attempt_count=1,lease_token=token,lease_expires_at=now()+interval '90 seconds' WHERE id=revised;
+ PERFORM public.complete_chat_reply(revised,token,'合成测试产品售价人民币99元。另一句。','[]');
+ SELECT * INTO q2 FROM public.quality_reviews WHERE source_job_id=revised;
+ IF q2.snapshot->>'execution_request' NOT LIKE '%价格为人民币99元%' OR q2.snapshot->>'execution_request_message_id' IS DISTINCT FROM request::text OR (SELECT snapshot FROM public.quality_reviews WHERE id=q.id) IS DISTINCT FROM old_snapshot THEN RAISE EXCEPTION 'Revision evidence missing or history rewritten';END IF;
+ IF public.request_text_quality(w,revised)<>q2.id THEN RAISE EXCEPTION 'Inspection not idempotent';END IF;
+ report:='{"verdict":"revise","summary":"当前两句，标准只允许一句；保留99元测试事实重写。","checks":[{"id":"task_goal","status":"pass","evidence":"合成测试产品售价人民币99元。","reason":"有产品介绍"},{"id":"task_acceptance","status":"fail","evidence":"合成测试产品售价人民币99元。另一句。","reason":"出现两个句号"},{"id":"truthfulness","status":"pass","evidence":"人民币99元","reason":"与本版固定执行指令中的测试事实一致"}]}';
+ UPDATE public.tasks SET execution_state='running',attempt_count=1,lease_token=token,lease_expires_at=now()+interval '90 seconds' WHERE id=q2.job_id;
+ PERFORM public.complete_chat_reply(q2.job_id,token,report::text,'[]');
+ SELECT (result->>'current_job_id')::uuid INTO repaired FROM public.tasks WHERE id=w;
+ IF repaired=revised OR NOT EXISTS(SELECT 1 FROM public.messages m JOIN public.tasks j ON j.request_message_id=m.id WHERE j.id=repaired AND m.content LIKE '%价格为人民币99元%') THEN RAISE EXCEPTION 'Internal repair dropped CEO facts';END IF;
+ UPDATE public.tasks SET execution_state='running',attempt_count=1,lease_token=token,lease_expires_at=now()+interval '90 seconds' WHERE id=repaired;
+ PERFORM public.complete_chat_reply(repaired,token,'合成测试产品售价人民币99元。','[]');
+ SELECT * INTO q2 FROM public.quality_reviews WHERE source_job_id=repaired;
+ IF q2.snapshot->>'execution_request' NOT LIKE '%价格为人民币99元%' OR (SELECT result->>'review_state' FROM public.tasks WHERE id=w)='accepted' THEN RAISE EXCEPTION 'Repair evidence lost or automatically accepted';END IF;
+END $test$;
+ROLLBACK;
+SELECT 'PASS: fixed source request, CEO revision facts, immutable old review, idempotency and internal repair retaining facts; rolled back' AS checks;
