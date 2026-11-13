@@ -1,6 +1,6 @@
 import { technologyBridge } from './technology-bridge.ts';
 import { textExecutionContext, employeeDelivery } from './text-execution.ts';
-import {qualityContext,parseQualityReport,uncertainQuality} from './text-quality.ts';
+import {qualityContext,parseQualityReport,uncertainQuality,qualityResponseFormat,qualityFailureReason} from './text-quality.ts';
 import {projectDialogueContext,validateDialogueAnswer,discussionReferences} from './project-dialogue.ts';
 import {employeeConsultationInstructions,employeeConsultationInput,employeeOutcome,managerConsultationContext,parseManagerDecision,type ConsultationContext} from './employee-consultation.ts';
 import { knowledgeContext } from './knowledge-context.ts';
@@ -99,7 +99,7 @@ export async function handle(req:Request):Promise<Response>{
   for(let i=0;i<models.length;i++){
    if(lost)throw new Error('LEASE_LOST');const model=models[i],start=Date.now();
    try{
-    const out=await ai.interactions.create({model,input,system_instruction:dialogue?.system || consultation?.system || inspection?.system || employeeContext?.system || 'You are '+agent.code+' ('+agent.title+') of AI Company OS. Answer the CEO in Chinese within your role. You have no tools or repository access; never claim actions were executed.\n'+(agent.system_prompt||''),generation_config:{thinking_level:'low',max_output_tokens:dialogue?(dialogue.limit===1400?800:1600):2400}},{timeout_ms:i===0&&models.length>1?15000:30000,maxRetries:0});
+    const out=await ai.interactions.create({model,input,...(inspection?{response_format:qualityResponseFormat()}:{}),system_instruction:dialogue?.system || consultation?.system || inspection?.system || employeeContext?.system || 'You are '+agent.code+' ('+agent.title+') of AI Company OS. Answer the CEO in Chinese within your role. You have no tools or repository access; never claim actions were executed.\n'+(agent.system_prompt||''),generation_config:{thinking_level:'low',max_output_tokens:dialogue?(dialogue.limit===1400?800:1600):2400}},{timeout_ms:i===0&&models.length>1?15000:30000,maxRetries:0});
     usage.push({model,status:out.status,duration_ms:Date.now()-start,input_tokens:out.usage?.total_input_tokens??null,output_tokens:out.usage?.total_output_tokens??null,request_id:out.id});
     if(out.status!=='completed'||!out.output_text?.trim())throw new Error('EMPTY_RESPONSE');answer=out.output_text.trim();break;
    }catch(e){if(!usage.some(x=>x.model===model))usage.push({model,status:'failed',duration_ms:Date.now()-start,input_tokens:null,output_tokens:null});if(i===models.length-1||!transient(e))throw e;}
@@ -109,7 +109,7 @@ export async function handle(req:Request):Promise<Response>{
   let content=employeeDelivery(answer,employeeContext?.prefix || '')+knowledge.provenance+discussion.footer;
   if(dialogue)content=validateDialogueAnswer(answer,dialogue.limit);
   if(consultation)content=JSON.stringify(parseManagerDecision(answer));
-  if(inspection){try{content=JSON.stringify(parseQualityReport(answer,inspection.body));}catch{content=JSON.stringify(uncertainQuality('质检输出格式或原文证据未通过验证，需要人工复核；系统没有将其标为通过。'));}}
+  if(inspection){try{content=JSON.stringify(parseQualityReport(answer,inspection.body));}catch(e){content=JSON.stringify(uncertainQuality(qualityFailureReason(e)));}}
   await rpc('complete_chat_reply',{p_task:job.id,p_token:job.lease_token,p_content:content,p_usage:usage});
   console.info('EDGE_TASK_SUCCEEDED',{task:job.id});return Response.json({status:'succeeded',taskId:job.id});
  }catch(e){
