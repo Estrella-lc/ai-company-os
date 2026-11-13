@@ -1,7 +1,7 @@
 "use client";
 import Link from 'next/link';
 import {usePathname} from 'next/navigation';
-const links=[['/company','公司总览'],['/','高管会话'],['/plans','COS 规划'],['/tasks','任务中心'],['/skills','技能中心'],['/subtitles','字幕交付']] as const;
+const links=[['/company','公司总览'],['/','高管会话'],['/plans','COS 规划'],['/tasks','任务中心'],['/skills','技能中心'],['/knowledge','公司知识库'],['/subtitles','字幕交付']] as const;
 export default function PlatformNav(){
   const path=usePathname();
   if(path==='/login')return null;

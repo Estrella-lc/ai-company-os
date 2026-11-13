@@ -18,11 +18,11 @@ export async function GET() {
  let jobs: unknown[] = [], replies: unknown[] = [];
  if (ids.length) {
   const [j,m] = await Promise.all([
-   db.from('tasks').select('id,execution_state,attempt_count,last_error_code').eq('created_by',user.id).eq('task_kind','chat_reply').in('id',ids),
+   db.from('tasks').select('id,execution_state,attempt_count,last_error_code,input').eq('created_by',user.id).eq('task_kind','chat_reply').in('id',ids),
    db.from('messages').select('id,reply_task_id,content,created_at').in('reply_task_id',ids),
   ]);
   if(j.error || m.error) return NextResponse.json({error:'无法读取执行成果'},{status:503});
-  jobs=j.data || []; replies=m.data || [];
+  jobs=(j.data || []).map(({input,...job})=>({...job,knowledge:Array.isArray(input?.knowledge_context)?input.knowledge_context.map((r:{id:string;title:string;source_task_id:string;source_job_id:string})=>({id:r.id,title:r.title,source_task_id:r.source_task_id,source_job_id:r.source_job_id})):[]})); replies=m.data || [];
  }
  return NextResponse.json({orders,jobs,replies},{headers:{'Cache-Control':'no-store'}});
 }
@@ -44,4 +44,3 @@ export async function PATCH(request:Request) {
  if(error) return NextResponse.json({error:'任务状态已变化或成果尚未就绪，请刷新后重试'},{status:409});
  return NextResponse.json({success:true});
 }
-
