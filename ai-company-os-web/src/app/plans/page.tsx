@@ -1,6 +1,7 @@
 "use client";
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, Suspense } from 'react';
+import {useSearchParams} from 'next/navigation';
 import type { CosPlan, PlanStep } from '@/lib/cos-plan';
 type Agent={id:string;code:string;title:string;is_active:boolean};
 type Planning={id:string;title:string;description:string;input:{acceptance:string};result:{stage:string;revision:number};draft:CosPlan|null;raw:string;job?:{execution_state:string;last_error_code:string|null}};
@@ -9,15 +10,19 @@ type Work={id:string;result:{review_state:string}};
 const field='w-full rounded-lg border border-slate-700 bg-[#0b1020] p-3 text-sm';
 const modes={direct:'COS 直接处理',single:'单人专业任务',team:'多人协作'};
 export default function PlansPage(){
+ return <Suspense fallback={<p>正在读取项目规划...</p>}><PlansWorkspace/></Suspense>;
+}
+function PlansWorkspace(){
+ const requestedPlan=useSearchParams().get('plan')||'';
  const [plans,setPlans]=useState<Planning[]>([]),[agents,setAgents]=useState<Agent[]>([]),[assignments,setAssignments]=useState<Assignment[]>([]),[work,setWork]=useState<Work[]>([]);
  const [selected,setSelected]=useState(''),[goal,setGoal]=useState(''),[acceptance,setAcceptance]=useState(''),[draft,setDraft]=useState<CosPlan|null>(null),[draftRev,setDraftRev]=useState(0),[dirty,setDirty]=useState(false);
  const [error,setError]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const requestKey=useRef(''),sequence=useRef(0);
  const load=useCallback(async()=>{
   const seq=++sequence.current;
-  try{const r=await fetch('/api/work-plans',{cache:'no-store'}),d=await r.json();if(!r.ok)throw new Error(d.error || '无法读取规划');if(seq!==sequence.current)return;setPlans(d.plans);setAssignments(d.assignments);setWork(d.workOrders);setSelected(old=>old || d.plans[0]?.id || '');}
+  try{const r=await fetch('/api/work-plans',{cache:'no-store'}),d=await r.json();if(!r.ok)throw new Error(d.error || '无法读取规划');if(seq!==sequence.current)return;setPlans(d.plans);setAssignments(d.assignments);setWork(d.workOrders);setSelected(old=>old || requestedPlan || d.plans[0]?.id || '');}
   catch(e){if(seq===sequence.current)setError(e instanceof Error?e.message:'加载失败');}finally{if(seq===sequence.current)setLoading(false);}
- },[]);
+ },[requestedPlan]);
  useEffect(()=>{
   let active=true;
   void fetch('/api/agents',{cache:'no-store'}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error();if(active)setAgents(d.agents.filter((a:Agent)=>a.is_active));}).catch(()=>{if(active)setError('无法读取高管，请刷新页面');});
@@ -41,7 +46,7 @@ export default function PlansPage(){
   catch(e){setError(e instanceof Error?e.message:'操作失败');}finally{setBusy(false);}
  }
  return <main className="min-h-screen bg-[#0b1020] text-slate-100 p-5 md:p-9">
-  <header className="max-w-6xl mx-auto mb-6"><p className="text-xs text-slate-500">AI COMPANY OS</p><h1 className="text-2xl font-bold mt-2">COS 任务规划</h1><p className="text-sm text-slate-400 mt-2">先判断处理方式，再确认分工。批准前不会启动执行任务。</p><nav className="flex gap-5 mt-3 text-blue-400"><Link href="/">CEO 总部</Link><Link href="/tasks">任务中心</Link><Link href="/skills">技能研究</Link></nav></header>
+  <header className="max-w-6xl mx-auto mb-6"><p className="text-xs text-slate-500">AI COMPANY OS</p><h1 className="text-2xl font-bold mt-2">COS 任务规划</h1><p className="text-sm text-slate-400 mt-2">先判断处理方式，再确认分工。批准前不会启动执行任务。</p><nav className="flex gap-5 mt-3 text-blue-400"><Link href="/">CEO 总部</Link><Link href="/tasks">任务中心</Link></nav></header>
   {error && <p role="alert" className="max-w-6xl mx-auto mb-4 border border-red-500 rounded-lg p-3 text-red-300">{error}</p>}
   <div className="max-w-6xl mx-auto grid lg:grid-cols-[320px_1fr] gap-6">
    <aside className="space-y-5">
@@ -63,7 +68,7 @@ export default function PlansPage(){
       <label className="block text-sm">处理方式<select disabled={approved} value={draft.mode} onChange={e=>edit({...draft,mode:e.target.value as CosPlan['mode']})} className={field+' mt-2'}>{Object.entries(modes).map(([v,label])=><option key={v} value={v}>{label}</option>)}</select></label>
       <label className="block text-sm">判断原因<textarea disabled={approved} rows={3} maxLength={2000} value={draft.reason} onChange={e=>edit({...draft,reason:e.target.value})} className={field+' mt-2'} /></label>
       <label className="block text-sm">待补充事项（每行一项，解决后可删除）<textarea disabled={approved} rows={2} value={draft.missing_information.join('\n')} onChange={e=>edit({...draft,missing_information:e.target.value.split('\n').filter(x=>x.trim())})} className={field+' mt-2'} /></label>
-      {draft.missing_information.length>0 && <p className="text-amber-300 text-sm">请先补齐资料或调整到现有能力范围，再批准。工具能力缺口会自动交给研究员。<Link href="/skills" className="text-blue-400 underline ml-2">查看技能研究</Link></p>}
+      {draft.missing_information.length>0 && <p className="text-amber-300 text-sm">请先补齐资料或调整到现有能力范围，再批准。也可以补充要求后重新规划。</p>}
       <h3 className="font-semibold">建议分工</h3>
       {draft.tasks.map((s,i)=><article key={i} className="rounded-lg border border-slate-700 p-4 space-y-3">
        <h4 className="font-semibold">步骤 {i+1}</h4>
@@ -83,4 +88,3 @@ export default function PlansPage(){
   </div>
  </main>;
 }
-
