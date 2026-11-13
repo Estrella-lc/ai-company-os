@@ -24,7 +24,9 @@ export async function GET() {
   if(j.error || m.error) return NextResponse.json({error:'无法读取执行成果'},{status:503});
   jobs=(j.data || []).map(({input,...job})=>({...job,knowledge:Array.isArray(input?.knowledge_context)?input.knowledge_context.map((r:{id:string;title:string;source_task_id:string;source_job_id:string})=>({id:r.id,title:r.title,source_task_id:r.source_task_id,source_job_id:r.source_job_id})):[]})); replies=m.data || [];
  }
- return NextResponse.json({orders,jobs,replies},{headers:{'Cache-Control':'no-store'}});
+ const {data:quality,error:qe}=(orders||[]).length?await db.from('quality_reviews').select('id,work_order_id,source_job_id,report,completed_at,job:tasks!quality_reviews_job_id_fkey(execution_state,last_error_code),employee:ai_employees(name)').eq('created_by',user.id).in('work_order_id',(orders||[]).map(w=>w.id)):{data:[],error:null};
+ if(qe)return NextResponse.json({error:'无法读取独立质检状态'},{status:503});
+ return NextResponse.json({orders,jobs,replies,quality},{headers:{'Cache-Control':'no-store'}});
 }
 export async function POST(request:Request) {
  const auth = await authorize();
@@ -41,6 +43,6 @@ export async function PATCH(request:Request) {
  let b; try { b=await request.json(); } catch { return NextResponse.json({error:'请求格式错误'},{status:400}); }
  if(!b || !uuid.test(b.id || '') || !uuid.test(b.jobId || '') || !['accept','revise'].includes(b.action) || typeof b.note!=='string' || b.note.length>2000 || (b.action==='revise' && !b.note.trim())) return NextResponse.json({error:'退回修改时请填写意见（最多2000字）'},{status:400});
  const {error}=await auth.db.rpc('review_work_order',{p_task:b.id,p_job:b.jobId,p_action:b.action,p_note:b.note});
- if(error) return NextResponse.json({error:'任务状态已变化或成果尚未就绪，请刷新后重试'},{status:409});
+ if(error) return NextResponse.json({error:'请刷新确认当前版本；新任务须独立质检通过后才能验收，不合格或待人工核实的成果可填写意见退回修改。'},{status:409});
  return NextResponse.json({success:true});
 }

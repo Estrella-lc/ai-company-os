@@ -14,4 +14,5 @@ assert.equal(overviewRows({integrations:{jobs:[{id:'blocked',title:'No connectio
 assert.equal(overviewRows({media:{jobs:[{id:'video',title:'Video',state:'succeeded',review:{state:'pending'}}]}})[0].state,'review');
 assert.equal(overviewRows({research:{jobs:[{id:'r',title:'Research',execution_state:'succeeded'}]}})[0].label,'研究完成（非业务验收）');
 assert.deepEqual(overviewRows({}),[]);
+assert.equal(overviewRows({work:{orders:[{id:'q',title:'qa',input:{quality_required:true},result:{current_job_id:'qj'}}],jobs:[{id:'qj',execution_state:'succeeded'}]}})[0].label,'独立质检排队 / 执行');
 console.log('PASS: accepted dependency gates, duplicate suppression, blocked connections, missing records and distinct delivery/research states');

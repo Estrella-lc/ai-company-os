@@ -3,15 +3,17 @@ import Link from 'next/link';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import {useSearchParams} from 'next/navigation';
 import KnowledgeReferences,{type KnowledgeReference} from '@/components/knowledge-references';
+import QualityReport,{type QualityReview} from '@/components/quality-report';
 type Agent={id:string;code:string;title:string;is_active:boolean};
 type Run={job_id:string;feedback:string|null};
-type Order={id:string;title:string;description:string;assigned_agent_id:string;conversation_id:string;input:{acceptance:string;runs:Run[];employee_id?:string;employee_name?:string};result:{review_state:string;current_job_id:string;review_note?:string};created_at:string};
+type Order={id:string;title:string;description:string;assigned_agent_id:string;conversation_id:string;input:{acceptance:string;runs:Run[];employee_id?:string;employee_name?:string;quality_required?:boolean};result:{review_state:string;current_job_id:string;review_note?:string};created_at:string};
 type Job={id:string;execution_state:string;attempt_count:number;last_error_code:string|null;knowledge?:KnowledgeReference[]};
 type Reply={id:string;reply_task_id:string;content:string;created_at:string};
 const field='w-full rounded-lg border border-slate-700 bg-[#0b1020] p-3 text-sm';
-function status(order:Order,jobs:Job[]) {
+function status(order:Order,jobs:Job[],quality:QualityReview[]) {
  if(order.result.review_state==='accepted') return '已完成';
  const j=jobs.find(x=>x.id===order.result.current_job_id);
+ if(j?.execution_state==='succeeded' && order.input.quality_required){const q=quality.find(q=>q.source_job_id===order.result.current_job_id);return q?.report?.verdict==='pass'?'待CEO验收':q?.report?.verdict==='revise'?'质检需返工':q?.report?.verdict==='needs_human'?'待人工核实':q?.job?.execution_state==='failed'?'质检失败':'独立质检中';}
  return ({queued:'排队中',running:'执行中',succeeded:'待验收',failed:'执行失败',cancelled:'已取消'} as Record<string,string>)[j?.execution_state || ''] || '读取中';
 }
 function TasksContent(){
@@ -19,6 +21,7 @@ function TasksContent(){
  const [agents,setAgents]=useState<Agent[]>([]),[orders,setOrders]=useState<Order[]>([]),[jobs,setJobs]=useState<Job[]>([]),[replies,setReplies]=useState<Reply[]>([]);
  const [selected,setSelected]=useState(''),[title,setTitle]=useState(''),[brief,setBrief]=useState(''),[acceptance,setAcceptance]=useState(''),[agentId,setAgentId]=useState(''),[note,setNote]=useState('');
  const [error,setError]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
+ const [quality,setQuality]=useState<QualityReview[]>([]);
  const requestKey=useRef(''),sequence=useRef(0);
  useEffect(()=>{if(!requestedTask)return;const timer=setTimeout(()=>{setSelected(requestedTask);setNote('');},0);return()=>clearTimeout(timer);},[requestedTask]);
 
@@ -28,7 +31,7 @@ function TasksContent(){
    const response=await fetch('/api/work-orders',{cache:'no-store'}),data=await response.json();
    if(!response.ok) throw new Error(data.error || '无法读取任务');
    if(seq!==sequence.current)return;
-   setOrders(data.orders);setJobs(data.jobs);setReplies(data.replies);
+   setOrders(data.orders);setJobs(data.jobs);setReplies(data.replies);setQuality(data.quality);
    setSelected(old=>old || new URLSearchParams(window.location.search).get('task') || data.orders[0]?.id || '');
   } catch(e){if(seq===sequence.current)setError(e instanceof Error?e.message:'加载失败');}
   finally{if(seq===sequence.current)setLoading(false);}
@@ -41,6 +44,9 @@ function TasksContent(){
  },[load]);
  const order=orders.find(w=>w.id===selected);
  const current=jobs.find(j=>j.id===order?.result.current_job_id);
+ const inspection=quality.find(q=>q.source_job_id===order?.result.current_job_id);
+ const manualAllowed=inspection?.report?.verdict==='needs_human'&&!inspection.report.checks.some(c=>c.status==='fail')&&note.trim().length>=20;
+ async function inspect(){if(!order||busy)return;setBusy(true);setError('');try{const r=await fetch('/api/quality',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderId:order.id,jobId:order.result.current_job_id})}),d=await r.json();if(!r.ok)throw new Error(d.error);await load();}catch(e){setError(e instanceof Error?e.message:'质检未启动');}finally{setBusy(false);}}
  async function create(e:React.FormEvent<HTMLFormElement>){
   e.preventDefault();if(busy)return;setBusy(true);setError('');
   requestKey.current ||= crypto.randomUUID();
@@ -72,19 +78,20 @@ function TasksContent(){
      <p className="text-xs text-slate-400">新任务由所选高管自动建立并分配文本执行员；COS任务直接处理。沿用按分钟调度，生成成果不等于验收完成。</p>
     </form>
     <section className="rounded-xl border border-slate-800 p-4"><h2 className="font-semibold mb-3">我的任务</h2>{loading && <p>正在读取任务...</p>}{!loading && !orders.length && <p className="text-sm text-slate-400">创建第一个任务，开始交付流程。</p>}
-     <div className="space-y-2">{orders.map(w=><button key={w.id} onClick={()=>{setSelected(w.id);window.history.replaceState(null,'','?task='+w.id);setNote('');setError('');}} className={'w-full text-left rounded-lg p-3 border '+(selected===w.id?'border-blue-500 bg-blue-500/10':'border-slate-800')}><span className="block font-medium break-words">{w.title}</span><span className="text-xs text-slate-400">{agents.find(a=>a.id===w.assigned_agent_id)?.code || '高管'} · {status(w,jobs)}</span></button>)}</div>
+     <div className="space-y-2">{orders.map(w=><button key={w.id} onClick={()=>{setSelected(w.id);window.history.replaceState(null,'','?task='+w.id);setNote('');setError('');}} className={'w-full text-left rounded-lg p-3 border '+(selected===w.id?'border-blue-500 bg-blue-500/10':'border-slate-800')}><span className="block font-medium break-words">{w.title}</span><span className="text-xs text-slate-400">{agents.find(a=>a.id===w.assigned_agent_id)?.code || '高管'} · {status(w,jobs,quality)}</span></button>)}</div>
     </section>
    </aside>
    <section className="rounded-xl border border-slate-800 bg-[#151e32] p-5 min-w-0">
     {!order ? <p className="text-slate-400">选择任务查看进度和成果。</p> : <>
-     <div className="flex flex-wrap justify-between gap-3"><h2 className="text-xl font-semibold break-words">{order.title}</h2><span className="text-emerald-400">{status(order,jobs)}</span></div>
+     <div className="flex flex-wrap justify-between gap-3"><h2 className="text-xl font-semibold break-words">{order.title}</h2><span className="text-emerald-400">{status(order,jobs,quality)}</span></div>
      <p className="text-sm text-slate-400 mt-2">负责高管：{agents.find(a=>a.id===order.assigned_agent_id)?.code || '高管'}</p>
      <p className="text-sm text-cyan-200 mt-2">执行：{order.input.employee_name || '高管直接处理（历史任务保持原执行方式）'}{order.input.employee_id?' · 能力：文本交付 · CEO最终验收':''}</p>
      <h3 className="font-semibold mt-5">目标与资料</h3><p className="whitespace-pre-wrap break-words mt-2 text-sm">{order.description}</p>
      <h3 className="font-semibold mt-5">验收标准</h3><p className="whitespace-pre-wrap break-words mt-2 text-sm">{order.input.acceptance}</p>
      <h3 className="font-semibold mt-6">交付记录</h3>
-     {order.input.runs.map((run,i)=>{const reply=replies.find(r=>r.reply_task_id===run.job_id),job=jobs.find(j=>j.id===run.job_id);return <article key={run.job_id} className="border border-slate-700 rounded-lg p-4 mt-3"><h4 className="font-medium">第 {i+1} 版</h4><KnowledgeReferences references={job?.knowledge || []}/>{run.feedback && <p className="text-sm text-amber-300 whitespace-pre-wrap mt-2">修改意见：{run.feedback}</p>}{reply?<p className="whitespace-pre-wrap break-words text-sm mt-3">{reply.content}</p>:<p className="text-slate-400 text-sm mt-3">{job?.execution_state==='failed'?'执行失败，可填写意见后重新提交。':job?.execution_state==='cancelled'?'执行已取消。':'后台处理中，刷新页面不会丢失任务。'}</p>}{job?.last_error_code && <p className="text-xs text-amber-300 mt-2">{['queued','running'].includes(job.execution_state)?'自动重试中':'执行记录'}：{job.last_error_code}</p>}</article>})}
-     {order.result.review_state==='accepted'?<p className="text-emerald-400 mt-5">CEO 已验收通过。{order.result.review_note && '验收意见：'+order.result.review_note}</p>:<div className="mt-6 border-t border-slate-700 pt-5"><label className="block text-sm">验收或修改意见<textarea value={note} onChange={e=>setNote(e.target.value)} rows={3} maxLength={2000} className={field+' mt-2'} /></label><div className="flex flex-wrap gap-3 mt-3"><button disabled={busy || current?.execution_state!=='succeeded'} onClick={()=>void review('accept')} className="bg-emerald-700 rounded-lg px-4 py-3 disabled:opacity-40">验收通过</button><button disabled={busy || !note.trim() || !['succeeded','failed','cancelled'].includes(current?.execution_state || '')} onClick={()=>void review('revise')} className="border border-amber-500 rounded-lg px-4 py-3 disabled:opacity-40">退回修改并重新执行</button></div></div>}
+     <p className="text-xs text-indigo-200 mt-3">新文本任务交付后自动独立质检，明确不合格时最多自动返工1次；仍不通过或无法核实则交给CEO处理。质检不代替项目全流程验证。</p>
+     {order.input.runs.map((run,i)=>{const reply=replies.find(r=>r.reply_task_id===run.job_id),job=jobs.find(j=>j.id===run.job_id);return <article key={run.job_id} className="border border-slate-700 rounded-lg p-4 mt-3"><h4 className="font-medium">第 {i+1} 版</h4><KnowledgeReferences references={job?.knowledge || []}/>{run.feedback && <p className="text-sm text-amber-300 whitespace-pre-wrap mt-2">修改意见：{run.feedback}</p>}{reply?<p className="whitespace-pre-wrap break-words text-sm mt-3">{reply.content}</p>:<p className="text-slate-400 text-sm mt-3">{job?.execution_state==='failed'?'执行失败，可填写意见后重新提交。':job?.execution_state==='cancelled'?'执行已取消。':'后台处理中，刷新页面不会丢失任务。'}</p>}{quality.find(q=>q.source_job_id===run.job_id) && <QualityReport review={quality.find(q=>q.source_job_id===run.job_id)!}/>}{job?.last_error_code && <p className="text-xs text-amber-300 mt-2">{['queued','running'].includes(job.execution_state)?'自动重试中':'执行记录'}：{job.last_error_code}</p>}</article>})}
+     {(!inspection || !inspection.report && ['failed','cancelled'].includes(inspection.job?.execution_state)) && current?.execution_state==='succeeded' && <button disabled={busy} onClick={()=>void inspect()} className="border border-indigo-600 rounded-lg p-3 mt-4 text-sm">{inspection?'重试失败的质检':'为当前版本启动独立质检'}</button>}{order.result.review_state==='accepted'?<p className="text-emerald-400 mt-5">CEO 已验收通过。{order.result.review_note && '验收意见：'+order.result.review_note}</p>:<div className="mt-6 border-t border-slate-700 pt-5">{inspection?.report?.verdict==='needs_human' && <p className="text-xs text-amber-200 mb-3">若报告没有明确不合格项，你可实际核查后填写至少20字的证据再验收；无法确认时请退回修改。</p>}<label className="block text-sm">验收或修改意见<textarea value={note} onChange={e=>setNote(e.target.value)} rows={3} maxLength={2000} className={field+' mt-2'} /></label><div className="flex flex-wrap gap-3 mt-3"><button disabled={busy || current?.execution_state!=='succeeded' || !!order.input.quality_required && inspection?.report?.verdict!=='pass' && !manualAllowed} onClick={()=>void review('accept')} className="bg-emerald-700 rounded-lg px-4 py-3 disabled:opacity-40">{inspection?.report?.verdict==='needs_human'?'附人工核查依据后验收':'验收通过'}</button><button disabled={busy || !note.trim() || !['succeeded','failed','cancelled'].includes(current?.execution_state || '')} onClick={()=>void review('revise')} className="border border-amber-500 rounded-lg px-4 py-3 disabled:opacity-40">退回修改并重新执行</button></div></div>}
     </>}
    </section>
   </div>
