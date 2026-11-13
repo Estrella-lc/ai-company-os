@@ -1,5 +1,5 @@
 import { technologyBridge } from './technology-bridge.ts';
-import { textExecutionContext } from './text-execution.ts';
+import { textExecutionContext, employeeDelivery } from './text-execution.ts';
 import { knowledgeContext } from './knowledge-context.ts';
 import { mediaBridge } from './media-bridge.ts';
 import { createGithubVerifier } from './github-identity.ts';
@@ -71,7 +71,7 @@ export async function handle(req:Request):Promise<Response>{
    }catch(e){if(!usage.some(x=>x.model===model))usage.push({model,status:'failed',duration_ms:Date.now()-start,input_tokens:null,output_tokens:null});if(i===models.length-1||!transient(e))throw e;}
   }
   if(lost)throw new Error('LEASE_LOST');
-  await rpc('complete_chat_reply',{p_task:job.id,p_token:job.lease_token,p_content:(employeeContext?.prefix || '')+answer+knowledge.provenance,p_usage:usage});
+  await rpc('complete_chat_reply',{p_task:job.id,p_token:job.lease_token,p_content:employeeDelivery(answer,employeeContext?.prefix || '')+knowledge.provenance,p_usage:usage});
   console.info('EDGE_TASK_SUCCEEDED',{task:job.id});return Response.json({status:'succeeded',taskId:job.id});
  }catch(e){
   const code=(e as Error)?.message==='INVALID_TASK_BINDING'?'invalid_binding':lost?'lease_lost':transient(e)?'provider_unavailable':'execution_failed';

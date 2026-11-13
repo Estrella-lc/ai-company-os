@@ -8,3 +8,9 @@ export function textExecutionContext(job:Job,employee:Employee|null,order:Order|
   prefix:'【'+employee.name+'交付 · 负责高管 '+manager.code+' · 待 CEO 验收】\n\n',
  };
 }
+export function employeeDelivery(answer:string,prefix:string){
+ if(!prefix)return answer;
+ const marker=prefix.trimEnd();let body=answer.trimStart();
+ for(let i=0;i<3 && body.startsWith(marker);i++)body=body.slice(marker.length).trimStart();
+ return prefix+body;
+}
