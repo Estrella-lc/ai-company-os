@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {employeeOutcome,employeeConsultationInstructions,employeeConsultationInput,managerConsultationContext,parseManagerDecision} from '../../supabase/functions/cto-task-worker/employee-consultation.ts';
+assert.equal(employeeOutcome('完整交付文本',{allowed:true}),null);
+assert.deepEqual(employeeOutcome('```json\n{"consultation_question":"缺少客户名称，请澄清。"}\n```',{allowed:true}),{question:'缺少客户名称，请澄清。'});
+for(const text of ['{"consultation_question":""}','{"consultation_question":"x","extra":true}','{"consultation_question":1}','{"consultation_question":"'+ 'x'.repeat(1001)+'"}','{"consultation_question":'])assert.throws(()=>employeeOutcome(text,{allowed:true}));
+assert.throws(()=>employeeOutcome('{"consultation_question":"再问一次"}',{allowed:false,answer:'已澄清'}));
+const job={id:'job',created_by:'ceo',assigned_agent_id:'cpo',input:{consultation_id:'c',capability:'employee_consultation_v1'}};
+const c={id:'c',created_by:'ceo',manager_agent_id:'cpo',manager_job_id:'job',question:'缺什么资料？',state:'waiting',snapshot:{goal:'核对事实'}};
+const context=managerConsultationContext(job,c,{id:'cpo',code:'CPO'});
+assert.deepEqual(JSON.parse(context.input).task_snapshot,{goal:'核对事实'});
+for(const bad of [{...c,created_by:'foreign'},{...c,manager_agent_id:'cmo'},{...c,manager_job_id:'other'},{...c,state:'resumed'}])assert.throws(()=>managerConsultationContext(job,bad,{id:'cpo',code:'CPO'}));
+assert.deepEqual(parseManagerDecision('{"decision":"needs_ceo","answer":"缺少用户确认的产品价格。"}'),{decision:'needs_ceo',answer:'缺少用户确认的产品价格。'});
+assert.deepEqual(parseManagerDecision('{"decision":"resume","answer":"依据快照中的验收条件继续。"}').decision,'resume');
+for(const text of ['plain text','{"decision":"accept","answer":"通过"}','{"decision":"resume","answer":""}','{"decision":"resume","answer":"x","grant":true}'])assert.throws(()=>parseManagerDecision(text));
+assert(employeeConsultationInput({allowed:false,question:'q',answer:'固定答复'}).includes('固定答复'));
+assert(!employeeConsultationInstructions({allowed:false,question:'q',answer:'固定答复'}).includes('固定答复'));
+console.log('PASS: consultation protocol, one-shot budget, role/owner/job binding, fixed task snapshot, decision validation and invalid outputs');

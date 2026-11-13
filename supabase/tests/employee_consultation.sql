@@ -1,0 +1,64 @@
+BEGIN;
+DO $test$
+DECLARE ceo uuid:='b8cbf27e-2391-4fb5-b061-f1488e8c3135'; manager uuid; w uuid; source uuid; c uuid; c2 uuid; token uuid:=gen_random_uuid(); j uuid; context jsonb; n integer;
+BEGIN
+ PERFORM set_config('request.jwt.claim.sub',ceo::text,true);
+ SELECT id INTO manager FROM public.agents WHERE code='CPO' AND is_active;
+ w:=public.create_work_order('CONSULT ROLLBACK resume','只核对文本能力，不执行外部动作','一句说明',manager,gen_random_uuid());
+ SELECT (result->>'current_job_id')::uuid INTO source FROM public.tasks WHERE id=w;
+ UPDATE public.tasks SET execution_state='running',attempt_count=1,lease_token=token,lease_expires_at=now()+interval '90 seconds' WHERE id=source;
+ context:=public.consultation_context_for_task(source,token);
+ IF context->>'allowed'<>'true' THEN RAISE EXCEPTION 'New employee consultation disabled';END IF;
+ BEGIN PERFORM public.request_employee_consultation(source,gen_random_uuid(),'无租约咨询','[]');RAISE EXCEPTION 'Wrong lease allowed';EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+ c:=public.request_employee_consultation(source,token,'请澄清纯文本能力边界。','[]');
+ IF public.request_employee_consultation(source,token,'请澄清纯文本能力边界。','[]')<>c THEN RAISE EXCEPTION 'Duplicate consultation';END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.tasks WHERE id=source AND execution_state='queued' AND available_at='infinity' AND lease_token IS NULL AND attempt_count=1) OR EXISTS(SELECT 1 FROM public.messages WHERE reply_task_id=source) OR EXISTS(SELECT 1 FROM public.quality_reviews WHERE source_job_id=source) THEN RAISE EXCEPTION 'Question treated as delivery';END IF;
+ BEGIN PERFORM public.complete_chat_reply(source,token,'迟到的旧执行不得伪装交付','[]');RAISE EXCEPTION 'Old source lease completed paused task';EXCEPTION WHEN serialization_failure THEN NULL;END;
+ BEGIN PERFORM public.review_work_order(w,source,'accept','');RAISE EXCEPTION 'Paused source accepted';EXCEPTION WHEN invalid_parameter_value THEN NULL;END;
+ SELECT manager_job_id INTO j FROM public.employee_consultations WHERE id=c;
+ IF EXISTS(SELECT 1 FROM public.tasks a JOIN public.tasks b ON a.conversation_id=b.conversation_id WHERE a.id=source AND b.id=j) THEN RAISE EXCEPTION 'Manager reads private source conversation';END IF;
+ UPDATE public.tasks SET execution_state='running',attempt_count=1,lease_token=token,lease_expires_at=now()+interval '90 seconds' WHERE id=j;
+ BEGIN PERFORM public.complete_chat_reply(j,gen_random_uuid(),'{"decision":"resume","answer":"依据原标准继续。"}','[]');RAISE EXCEPTION 'Stale manager lease accepted';EXCEPTION WHEN serialization_failure THEN NULL;END;
+ PERFORM public.complete_chat_reply(j,token,'{"decision":"resume","answer":"只交付文本，未执行的外部动作必须明确标注。"}','[]');
+ PERFORM public.complete_chat_reply(j,token,'{"decision":"resume","answer":"重复回调不能改变既定答复。"}','[]');
+ IF NOT EXISTS(SELECT 1 FROM public.tasks WHERE id=source AND execution_state='queued' AND available_at<='infinity' AND available_at<now()+interval '1 minute' AND attempt_count=1) OR (SELECT count(*) FROM public.employee_consultations WHERE work_order_id=w)<>1 THEN RAISE EXCEPTION 'Resume not idempotent';END IF;
+ UPDATE public.tasks SET execution_state='running',attempt_count=2,lease_token=token,lease_expires_at=now()+interval '90 seconds' WHERE id=source;
+ context:=public.consultation_context_for_task(source,token);
+ IF context->>'allowed'<>'false' OR context->>'answer'<>'只交付文本，未执行的外部动作必须明确标注。' THEN RAISE EXCEPTION 'Missing fixed answer or repeated consultation enabled';END IF;
+ BEGIN PERFORM public.request_employee_consultation(source,token,'第二次咨询应禁止','[]');RAISE EXCEPTION 'Repeat consultation allowed';EXCEPTION WHEN invalid_parameter_value THEN NULL;END;
+ PERFORM public.complete_chat_reply(source,token,'仅交付文本，未执行外部动作。','[]');
+ IF (SELECT count(*) FROM public.quality_reviews WHERE source_job_id=source)<>1 OR (SELECT result->>'review_state' FROM public.tasks WHERE id=w)='accepted' THEN RAISE EXCEPTION 'Quality skipped or accepted automatically';END IF;
+ PERFORM public.review_work_order(w,source,'revise','CEO补充事实后重新提交。');
+ SELECT (result->>'current_job_id')::uuid INTO source FROM public.tasks WHERE id=w;
+ UPDATE public.tasks SET execution_state='running',attempt_count=1,lease_token=token,lease_expires_at=now()+interval '90 seconds' WHERE id=source;
+ IF public.consultation_context_for_task(source,token)->>'allowed'<>'false' THEN RAISE EXCEPTION 'CEO revision reset consultation budget';END IF;
+ FOR n IN 1..2 LOOP
+  w:=public.create_work_order('CONSULT ROLLBACK recovery '||n,'缺少客户确认价格','价格必须有来源',manager,gen_random_uuid());
+  SELECT (result->>'current_job_id')::uuid INTO source FROM public.tasks WHERE id=w;
+  UPDATE public.tasks SET execution_state='running',attempt_count=1,lease_token=token,lease_expires_at=now()+interval '90 seconds' WHERE id=source;
+  c2:=public.request_employee_consultation(source,token,'价格无资料，不能编造。','[]');
+  SELECT manager_job_id INTO j FROM public.employee_consultations WHERE id=c2;
+  UPDATE public.tasks SET execution_state='running',attempt_count=1,lease_token=token,lease_expires_at=now()+interval '90 seconds' WHERE id=j;
+  PERFORM public.fail_chat_reply(j,token,'synthetic_fault',false,'[]');
+  PERFORM public.retry_employee_consultation(c2);
+  IF NOT EXISTS(SELECT 1 FROM public.tasks WHERE id=j AND execution_state='queued' AND attempt_count=1) THEN RAISE EXCEPTION 'Consultation retry lost history';END IF;
+  IF n=1 THEN
+   UPDATE public.tasks SET execution_state='running',attempt_count=2,lease_token=token,lease_expires_at=now()+interval '90 seconds' WHERE id=j;
+   PERFORM public.complete_chat_reply(j,token,'{"decision":"needs_ceo","answer":"缺少用户确认价格，不能虚构，请CEO补充。"}','[]');
+   IF NOT EXISTS(SELECT 1 FROM public.tasks WHERE id=source AND execution_state='failed' AND last_error_code='consultation_needs_ceo') OR NOT EXISTS(SELECT 1 FROM public.employee_consultations WHERE id=c2 AND state='needs_ceo') OR EXISTS(SELECT 1 FROM public.quality_reviews WHERE source_job_id=source) THEN RAISE EXCEPTION 'Missing facts resumed or entered quality';END IF;
+  ELSE
+   UPDATE public.tasks SET execution_state='failed',attempt_count=10,max_attempts=10,finished_at=now() WHERE id=j;
+   BEGIN PERFORM public.retry_employee_consultation(c2);RAISE EXCEPTION 'Retry limit ignored';EXCEPTION WHEN invalid_parameter_value THEN NULL;END;
+   PERFORM public.close_employee_consultation(c2);
+   IF NOT EXISTS(SELECT 1 FROM public.tasks WHERE id=source AND execution_state='failed' AND last_error_code='consultation_closed') THEN RAISE EXCEPTION 'Failed consultation stranded source';END IF;
+  END IF;
+ END LOOP;
+ IF has_function_privilege('authenticated','public.request_employee_consultation(uuid,uuid,text,jsonb)','EXECUTE') OR has_function_privilege('anon','public.retry_employee_consultation(uuid)','EXECUTE') OR has_table_privilege('authenticated','public.employee_consultations','UPDATE') OR has_table_privilege('service_role','public.employee_consultations','INSERT') THEN RAISE EXCEPTION 'Excess consultation permissions';END IF;
+ PERFORM set_config('request.jwt.claim.sub',gen_random_uuid()::text,true);
+ BEGIN PERFORM public.retry_employee_consultation(c);RAISE EXCEPTION 'Foreign user allowed';EXCEPTION WHEN insufficient_privilege OR invalid_parameter_value THEN NULL;END;
+END $test$;
+SET LOCAL ROLE authenticated;
+DO $rls$ BEGIN IF EXISTS(SELECT 1 FROM public.employee_consultations) THEN RAISE EXCEPTION 'Consultation RLS leak';END IF;END $rls$;
+RESET ROLE;
+ROLLBACK;
+SELECT 'PASS: consultation lease/binding, idempotent pause/resume, no false delivery, one-per-order budget across revisions, independent quality, failed retry limits/closure, CEO escalation and RLS; rolled back' AS checks;

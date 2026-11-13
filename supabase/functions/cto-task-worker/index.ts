@@ -2,6 +2,7 @@ import { technologyBridge } from './technology-bridge.ts';
 import { textExecutionContext, employeeDelivery } from './text-execution.ts';
 import {qualityContext,parseQualityReport,uncertainQuality} from './text-quality.ts';
 import {projectDialogueContext,validateDialogueAnswer,discussionReferences} from './project-dialogue.ts';
+import {employeeConsultationInstructions,employeeConsultationInput,employeeOutcome,managerConsultationContext,parseManagerDecision,type ConsultationContext} from './employee-consultation.ts';
 import { knowledgeContext } from './knowledge-context.ts';
 import { mediaBridge } from './media-bridge.ts';
 import { createGithubVerifier } from './github-identity.ts';
@@ -53,6 +54,13 @@ export async function handle(req:Request):Promise<Response>{
   let employeeContext:ReturnType<typeof textExecutionContext>|null=null;
   let inspection:ReturnType<typeof qualityContext>|null=null;
   let dialogue:ReturnType<typeof projectDialogueContext>|null=null;
+  let consultation:ReturnType<typeof managerConsultationContext>|null=null;
+  let consultationContext:ConsultationContext={allowed:false};
+  if(job.input?.consultation_id){
+   const {data:q,error}=await db.from('employee_consultations').select('id,created_by,manager_agent_id,manager_job_id,question,state,snapshot').eq('id',job.input.consultation_id).eq('created_by',job.created_by).single();
+   if(error)throw new Error('INVALID_TASK_BINDING');
+   consultation=managerConsultationContext(job,q,agent);
+  }
   if(job.input?.discussion_turn_id){
    const {data:t,error:te}=await db.from('discussion_turns').select('id,created_by,discussion_id,round_number,phase,agent_id,job_id,content').eq('id',job.input.discussion_turn_id).eq('created_by',job.created_by).single();
    if(te||!t)throw new Error('INVALID_TASK_BINDING');
@@ -75,26 +83,32 @@ export async function handle(req:Request):Promise<Response>{
    ]);
    if(employee.error || order.error)throw new Error('INVALID_TASK_BINDING');
    employeeContext=textExecutionContext(job,employee.data,order.data,agent);
+   const {data,error}=await db.rpc('consultation_context_for_task',{p_task:job.id,p_token:job.lease_token});
+   if(error&&!['PGRST202','42883'].includes(error.code))throw new Error(error.message);
+   consultationContext=data||{allowed:false};
+   employeeContext.system+=employeeConsultationInstructions(consultationContext);
   }
   const {data:h,error:he}=await db.from('messages').select('id,sender_type,content,created_at').eq('conversation_id',c.id).lte('created_at',m.created_at).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(20);if(he)throw he;
   const knowledge=knowledgeContext(employeeContext?await rpc('knowledge_for_employee_task',{p_task:job.id,p_token:job.lease_token}):[]);
   let discussionData:Parameters<typeof discussionReferences>[0]=[];
-  if(!inspection&&!dialogue){const {data,error}=await db.rpc('discussion_context_for_task',{p_task:job.id,p_token:job.lease_token});if(error&&!['PGRST202','42883'].includes(error.code))throw new Error(error.message);discussionData=data||[];}
+  if(!inspection&&!dialogue&&!consultation){const {data,error}=await db.rpc('discussion_context_for_task',{p_task:job.id,p_token:job.lease_token});if(error&&!['PGRST202','42883'].includes(error.code))throw new Error(error.message);discussionData=data||[];}
   const discussion=discussionReferences(discussionData);
-  const input=dialogue?dialogue.input:inspection?inspection.input:employeeContext?m.content+knowledge.input+discussion.input:h.filter(x=>x.id!==m.id).reverse().map(x=>(x.sender_type==='user'?'CEO':agent.code)+': '+x.content).join('\n')+'\nCEO: '+m.content+discussion.input;
+  const input=dialogue?dialogue.input:consultation?consultation.input:inspection?inspection.input:employeeContext?m.content+knowledge.input+discussion.input+employeeConsultationInput(consultationContext):h.filter(x=>x.id!==m.id).reverse().map(x=>(x.sender_type==='user'?'CEO':agent.code)+': '+x.content).join('\n')+'\nCEO: '+m.content+discussion.input;
   const ai=new GoogleGenAI({apiKey:gemini});
   const models=[...new Set([env('GEMINI_MODEL')||'gemini-3.8-flash',env('GEMINI_FALLBACK_MODEL')||'gemini-3.5-flash-lite'])];let answer='';
   for(let i=0;i<models.length;i++){
    if(lost)throw new Error('LEASE_LOST');const model=models[i],start=Date.now();
    try{
-    const out=await ai.interactions.create({model,input,system_instruction:dialogue?.system || inspection?.system || employeeContext?.system || 'You are '+agent.code+' ('+agent.title+') of AI Company OS. Answer the CEO in Chinese within your role. You have no tools or repository access; never claim actions were executed.\n'+(agent.system_prompt||''),generation_config:{thinking_level:'low',max_output_tokens:dialogue?(dialogue.limit===1400?800:1600):2400}},{timeout_ms:i===0&&models.length>1?15000:30000,maxRetries:0});
+    const out=await ai.interactions.create({model,input,system_instruction:dialogue?.system || consultation?.system || inspection?.system || employeeContext?.system || 'You are '+agent.code+' ('+agent.title+') of AI Company OS. Answer the CEO in Chinese within your role. You have no tools or repository access; never claim actions were executed.\n'+(agent.system_prompt||''),generation_config:{thinking_level:'low',max_output_tokens:dialogue?(dialogue.limit===1400?800:1600):2400}},{timeout_ms:i===0&&models.length>1?15000:30000,maxRetries:0});
     usage.push({model,status:out.status,duration_ms:Date.now()-start,input_tokens:out.usage?.total_input_tokens??null,output_tokens:out.usage?.total_output_tokens??null,request_id:out.id});
     if(out.status!=='completed'||!out.output_text?.trim())throw new Error('EMPTY_RESPONSE');answer=out.output_text.trim();break;
    }catch(e){if(!usage.some(x=>x.model===model))usage.push({model,status:'failed',duration_ms:Date.now()-start,input_tokens:null,output_tokens:null});if(i===models.length-1||!transient(e))throw e;}
   }
   if(lost)throw new Error('LEASE_LOST');
+  if(employeeContext){const request=employeeOutcome(answer,consultationContext);if(request){const id=await rpc('request_employee_consultation',{p_task:job.id,p_token:job.lease_token,p_question:request.question,p_usage:usage});return Response.json({status:'awaiting_manager',taskId:job.id,consultationId:id});}}
   let content=employeeDelivery(answer,employeeContext?.prefix || '')+knowledge.provenance+discussion.footer;
   if(dialogue)content=validateDialogueAnswer(answer,dialogue.limit);
+  if(consultation)content=JSON.stringify(parseManagerDecision(answer));
   if(inspection){try{content=JSON.stringify(parseQualityReport(answer,inspection.body));}catch{content=JSON.stringify(uncertainQuality('质检输出格式或原文证据未通过验证，需要人工复核；系统没有将其标为通过。'));}}
   await rpc('complete_chat_reply',{p_task:job.id,p_token:job.lease_token,p_content:content,p_usage:usage});
   console.info('EDGE_TASK_SUCCEEDED',{task:job.id});return Response.json({status:'succeeded',taskId:job.id});
