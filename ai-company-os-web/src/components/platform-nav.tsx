@@ -3,7 +3,7 @@ import Link from 'next/link';
 import {usePathname} from 'next/navigation';
 import {useState,type ReactNode} from 'react';
 const groups=[
- {name:'工作空间',items:[{href:'/company',label:'公司总览',icon:'overview'},{href:'/plans',label:'COS 规划',icon:'flow'},{href:'/tasks',label:'任务中心',icon:'tasks'}]},
+ {name:'工作空间',items:[{href:'/company',label:'公司总览',icon:'overview'},{href:'/projects',label:'项目中心',icon:'flow'},{href:'/plans',label:'COS 规划',icon:'flow'},{href:'/tasks',label:'任务中心',icon:'tasks'}]},
  {name:'公司能力',items:[{href:'/',label:'高管团队',icon:'team'},{href:'/skills',label:'技能中心',icon:'skills'},{href:'/knowledge',label:'公司知识库',icon:'book'}]},
  {name:'协作与演进',items:[{href:'/roadmap',label:'建设路线',icon:'roadmap'}]},
 ];
@@ -21,7 +21,7 @@ export default function PlatformNav({children}:{children:ReactNode}){
    <nav aria-label="公司主导航" className="workspace-navigation">{groups.map(g=><section key={g.name} className="nav-group"><p>{g.name}</p>{g.items.map(item=><div key={item.href}><Link href={item.href} onClick={()=>setOpen(false)} aria-current={active(item.href)?'page':undefined} className={'workspace-nav-link '+(active(item.href)?'is-active':'')}><Icon name={item.icon}/><span>{item.label}</span>{active(item.href) && <span className="nav-active-dot"/>}</Link>{item.href==='/skills' && isSkills && <div className="workspace-subnav">{[['/skills','技能总览'],['/skills/research','发现与接入'],['/skills/subtitles','字幕烧录']].map(([href,label])=><Link href={href} key={href} aria-current={path===href?'page':undefined} onClick={()=>setOpen(false)}>{label}</Link>)}</div>}</div>)}</section>)}</nav>
    <div className="workspace-sidebar-footer"><span className="workspace-avatar">C</span><div><strong>CEO 工作空间</strong><small>目标 · 协作 · 交付</small></div><span className="workspace-footer-mark">◈</span></div>
   </aside>
-  <div className="workspace-stage"><header className="workspace-topbar"><div className="workspace-crumb"><button className="workspace-menu-button" aria-label="打开公司导航" aria-expanded={open} onClick={()=>setOpen(!open)}>☰</button><span className="crumb-root">工作空间</span><span className="crumb-separator">/</span>{isSkills && path!=='/skills' && <><Link href="/skills">技能中心</Link><span className="crumb-separator">/</span></>}<span>{current}</span></div><div className="workspace-topbar-actions"><Link href="/roadmap" className="workspace-quiet-link">建设路线 ↗</Link><Link href="/plans" className="workspace-primary-link">＋ 新建业务目标</Link></div></header>
+   <div className="workspace-stage"><header className="workspace-topbar"><div className="workspace-crumb"><button className="workspace-menu-button" aria-label="打开公司导航" aria-expanded={open} onClick={()=>setOpen(!open)}>☰</button><span className="crumb-root">工作空间</span><span className="crumb-separator">/</span>{isSkills && path!=='/skills' && <><Link href="/skills">技能中心</Link><span className="crumb-separator">/</span></>}<span>{current}</span></div><div className="workspace-topbar-actions"><Link href="/roadmap" className="workspace-quiet-link">建设路线 ↗</Link><Link href="/projects" className="workspace-primary-link">＋ 新建业务目标</Link></div></header>
    <div id="workspace-main" className="workspace-content">{children}</div><footer className="workspace-bottomline"><span>AI COMPANY OS</span><span>每一次交付，都成为公司的积累。</span></footer>
   </div>
  </div>;
