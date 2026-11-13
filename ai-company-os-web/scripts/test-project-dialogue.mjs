@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {projectDialogueContext,validateDialogueAnswer,discussionReferences} from '../../supabase/functions/cto-task-worker/project-dialogue.ts';
+const job={id:'job',created_by:'ceo',assigned_agent_id:'cmo',input:{discussion_turn_id:'turn',capability:'project_dialogue_v1'}};
+const turn={id:'turn',created_by:'ceo',discussion_id:'d',round_number:1,phase:0,agent_id:'cmo',job_id:'job',content:null};
+const d={id:'d',created_by:'ceo',project_id:'p',sender_agent_id:'cmo',recipient_agent_id:'cpo',topic:'明确边界',max_rounds:2,state:'active',snapshot:{goal:'g'}};
+assert.equal(projectDialogueContext(job,turn,d,[],{id:'cmo',code:'CMO',title:'marketing'}).limit,1400);
+const ask={...turn,id:'previous',job_id:'q',content:'哪些能力需要证据？'};
+const reply={...turn,phase:1,agent_id:'cpo'};
+const recipientJob={...job,assigned_agent_id:'cpo'};
+assert.equal(projectDialogueContext(recipientJob,reply,d,[ask],{id:'cpo',code:'CPO',title:'product'}).limit,5000);
+for(const args of [[job,turn,{...d,created_by:'other'},[],{id:'cmo'}],[job,{...turn,round_number:3},d,[],{id:'cmo'}],[recipientJob,reply,d,[],{id:'cpo'}],[recipientJob,reply,d,[{...ask,discussion_id:'foreign'}],{id:'cpo'}],[job,turn,{...d,state:'completed'},[],{id:'cmo'}]])assert.throws(()=>projectDialogueContext(...args));
+assert.throws(()=>validateDialogueAnswer('',1400));assert.throws(()=>validateDialogueAnswer('x'.repeat(1401),1400));assert.equal(validateDialogueAnswer(' ok ',1400),'ok');
+assert.throws(()=>discussionReferences([{}, {}, {}]));
+assert(discussionReferences([{discussion_id:'d',topic:'t',reply:'answer',reply_job_id:'j',project_revision:1}]).footer.includes('d'));
+console.log('PASS: project dialogue identity, scoped history, role/phase binding, round bounds, conservative output limits and bounded source references');
