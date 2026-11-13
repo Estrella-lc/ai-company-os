@@ -26,7 +26,9 @@ export async function GET() {
  }
  const {data:quality,error:qe}=(orders||[]).length?await db.from('quality_reviews').select('id,work_order_id,source_job_id,report,completed_at,job:tasks!quality_reviews_job_id_fkey(execution_state,last_error_code),employee:ai_employees(name)').eq('created_by',user.id).in('work_order_id',(orders||[]).map(w=>w.id)):{data:[],error:null};
  if(qe)return NextResponse.json({error:'无法读取独立质检状态'},{status:503});
- return NextResponse.json({orders,jobs,replies,quality},{headers:{'Cache-Control':'no-store'}});
+ const {data:consultations,error:consultError}=(orders||[]).length?await db.from('employee_consultations').select('id,work_order_id,source_job_id,question,state,answer,created_at,answered_at,job:tasks!employee_consultations_manager_job_id_fkey(execution_state,attempt_count,last_error_code)').eq('created_by',user.id).in('work_order_id',(orders||[]).map(w=>w.id)):{data:[],error:null};
+ if(consultError&&!['PGRST205','42P01'].includes(consultError.code))return NextResponse.json({error:'无法读取员工咨询状态'},{status:503});
+ return NextResponse.json({orders,jobs,replies,quality,consultations:consultations||[]},{headers:{'Cache-Control':'no-store'}});
 }
 export async function POST(request:Request) {
  const auth = await authorize();
