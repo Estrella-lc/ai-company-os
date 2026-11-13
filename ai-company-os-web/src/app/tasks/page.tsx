@@ -1,6 +1,5 @@
 "use client";
 import Link from 'next/link';
-import IntegrationPanel from '../skills/integration-panel';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import {useSearchParams} from 'next/navigation';
 import KnowledgeReferences,{type KnowledgeReference} from '@/components/knowledge-references';
@@ -60,7 +59,6 @@ function TasksContent(){
  }
  return <main className="min-h-screen bg-[#0b1020] text-slate-100 p-5 md:p-9">
   <header className="max-w-6xl mx-auto mb-6 flex flex-wrap items-center justify-between gap-4"><div><p className="text-xs text-slate-500">AI COMPANY OS</p><h1 className="text-2xl font-bold mt-2">任务中心</h1><p className="text-sm text-slate-400 mt-2">高管组织文本执行员工交付，COS可直接处理简单任务，由 CEO 最终验收。</p></div><Link href="/" className="text-blue-400 shrink-0">返回 CEO 总部</Link><Link href="/plans" className="text-blue-400 shrink-0">交给 COS 规划</Link></header>
-  <div className="max-w-6xl mx-auto"><IntegrationPanel compact/></div>
   {error && <p role="alert" className="max-w-6xl mx-auto mb-4 rounded-lg border border-red-500 p-3 text-red-300">{error}</p>}
   <div className="max-w-6xl mx-auto grid lg:grid-cols-[340px_1fr] gap-6">
    <aside className="space-y-6">

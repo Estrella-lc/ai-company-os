@@ -47,12 +47,12 @@ export function overviewRows(data:OverviewInput):OverviewRow[] {
     const s=status(p.job?.execution_state);
     rows.push({key:'plan:'+p.id,title:p.title,manager:data.agents?.agents?.find(a=>a.code==='COS')?.id || '',kind:'COS 规划',...s,label:s.state==='review'?'待确认规划':s.label,href:'/plans',dependencies:[]});
   }
-  for(const m of data.media?.jobs || [])rows.push({key:'media:'+m.id,title:m.title,manager:m.manager_agent_id || '',kind:'字幕交付',...status(m.state,m.review?.state),...(m.state==='uploading'?{state:'uploading',phase:0,label:'等待素材'}:{}),href:'/subtitles',dependencies:[]});
+  for(const m of data.media?.jobs || [])rows.push({key:'media:'+m.id,title:m.title,manager:m.manager_agent_id || '',kind:'字幕交付',...status(m.state,m.review?.state),...(m.state==='uploading'?{state:'uploading',phase:0,label:'等待素材'}:{}),href:'/skills/subtitles',dependencies:[]});
   for(const [kind,jobs] of [['技能研究',data.research?.jobs || []],['技术接入',data.integrations?.jobs || []]] as const) {
     for(const j of jobs) {
       let s=status(j.execution_state);
       if(j.execution_state==='succeeded')s=j.result?.connection_status==='blocked'?{state:'blocked',phase:2,label:'未接入，需补充条件'}:{state:'completed',phase:4,label:kind==='技能研究'?'研究完成（非业务验收）':j.result?.connection_status==='executed'?'调用完成':j.result?.connection_status==='reused'?'已复用连接':'接入验证通过'};
-      rows.push({key:kind+':'+j.id,title:j.title,manager:j.assigned_agent_id || '',kind,...s,href:'/skills',dependencies:[]});
+      rows.push({key:kind+':'+j.id,title:j.title,manager:j.assigned_agent_id || '',kind,...s,href:'/skills/research',dependencies:[]});
     }
   }
   return rows;

@@ -25,7 +25,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="zh-CN"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col"><Suspense fallback={null}><PlatformNav /></Suspense>{children}</body>
+      <body className="min-h-full flex flex-col"><Suspense fallback={children}><PlatformNav>{children}</PlatformNav></Suspense></body>
     </html>
   );
 }
