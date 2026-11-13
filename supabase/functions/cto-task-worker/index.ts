@@ -1,5 +1,6 @@
 import { technologyBridge } from './technology-bridge.ts';
 import { textExecutionContext } from './text-execution.ts';
+import { knowledgeContext } from './knowledge-context.ts';
 import { mediaBridge } from './media-bridge.ts';
 import { createGithubVerifier } from './github-identity.ts';
 const verifySkillIdentity=createGithubVerifier();
@@ -57,7 +58,8 @@ export async function handle(req:Request):Promise<Response>{
    employeeContext=textExecutionContext(job,employee.data,order.data,agent);
   }
   const {data:h,error:he}=await db.from('messages').select('id,sender_type,content,created_at').eq('conversation_id',c.id).lte('created_at',m.created_at).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(20);if(he)throw he;
-  const input=employeeContext?m.content:h.filter(x=>x.id!==m.id).reverse().map(x=>(x.sender_type==='user'?'CEO':agent.code)+': '+x.content).join('\n')+'\nCEO: '+m.content;
+  const knowledge=knowledgeContext(employeeContext?await rpc('knowledge_for_employee_task',{p_task:job.id,p_token:job.lease_token}):[]);
+  const input=employeeContext?m.content+knowledge.input:h.filter(x=>x.id!==m.id).reverse().map(x=>(x.sender_type==='user'?'CEO':agent.code)+': '+x.content).join('\n')+'\nCEO: '+m.content;
   const ai=new GoogleGenAI({apiKey:gemini});
   const models=[...new Set([env('GEMINI_MODEL')||'gemini-3.8-flash',env('GEMINI_FALLBACK_MODEL')||'gemini-3.5-flash-lite'])];let answer='';
   for(let i=0;i<models.length;i++){
@@ -69,7 +71,7 @@ export async function handle(req:Request):Promise<Response>{
    }catch(e){if(!usage.some(x=>x.model===model))usage.push({model,status:'failed',duration_ms:Date.now()-start,input_tokens:null,output_tokens:null});if(i===models.length-1||!transient(e))throw e;}
   }
   if(lost)throw new Error('LEASE_LOST');
-  await rpc('complete_chat_reply',{p_task:job.id,p_token:job.lease_token,p_content:(employeeContext?.prefix || '')+answer,p_usage:usage});
+  await rpc('complete_chat_reply',{p_task:job.id,p_token:job.lease_token,p_content:(employeeContext?.prefix || '')+answer+knowledge.provenance,p_usage:usage});
   console.info('EDGE_TASK_SUCCEEDED',{task:job.id});return Response.json({status:'succeeded',taskId:job.id});
  }catch(e){
   const code=(e as Error)?.message==='INVALID_TASK_BINDING'?'invalid_binding':lost?'lease_lost':transient(e)?'provider_unavailable':'execution_failed';

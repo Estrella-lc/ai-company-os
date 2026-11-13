@@ -1,0 +1,46 @@
+BEGIN;
+DO $test$
+DECLARE ceo uuid:='b8cbf27e-2391-4fb5-b061-f1488e8c3135';cmo uuid;cfo uuid;w uuid;j uuid;target uuid;target_job uuid;token uuid:=gen_random_uuid();refs jsonb;again jsonb;items jsonb;source_ids uuid[]:='{}';i int;
+BEGIN
+ PERFORM set_config('request.jwt.claim.sub',ceo::text,true);
+ SELECT id INTO cmo FROM public.agents WHERE code='CMO' AND is_active;
+ SELECT id INTO cfo FROM public.agents WHERE code='CFO' AND is_active;
+ FOR i IN 1..4 LOOP
+  w:=public.create_work_order('NEBULA812 accepted fixture ' || i,'NEBULA812 fixture source','Calibration only',cmo,gen_random_uuid());
+  SELECT (result->>'current_job_id')::uuid INTO j FROM public.tasks WHERE id=w;
+  IF EXISTS(SELECT 1 FROM public.company_knowledge WHERE source_task_id=w) THEN RAISE EXCEPTION 'Unaccepted knowledge archived';END IF;
+  UPDATE public.tasks SET execution_state='running',attempt_count=1,lease_token=token,lease_expires_at=now()+interval '90 seconds' WHERE id=j;
+  PERFORM public.complete_chat_reply(j,token,'NEBULA812 verified fixture ' || repeat('reference ',160),'[]');
+  IF EXISTS(SELECT 1 FROM public.company_knowledge WHERE source_task_id=w) THEN RAISE EXCEPTION 'Generated knowledge archived before acceptance';END IF;
+  PERFORM public.review_work_order(w,j,'accept','Synthetic rollback fixture');
+  PERFORM public.review_work_order(w,j,'accept','Duplicate accept');
+  IF (SELECT count(*) FROM public.company_knowledge WHERE source_task_id=w)<>1 THEN RAISE EXCEPTION 'Archive missing or duplicated';END IF;
+  source_ids:=array_append(source_ids,w);
+ END LOOP;
+ items:=public.search_company_knowledge('NEBULA812',20);
+ IF jsonb_array_length(items)<>4 THEN RAISE EXCEPTION 'Accepted search failed';END IF;
+ IF public.search_company_knowledge('ZZUNRELATED993',20)<>'[]'::jsonb THEN RAISE EXCEPTION 'Unrelated references returned';END IF;
+ target:=public.create_work_order('NEBULA812 CFO reuse','Use NEBULA812 accepted evidence','Cite source',cfo,gen_random_uuid());
+ SELECT (result->>'current_job_id')::uuid INTO target_job FROM public.tasks WHERE id=target;
+ UPDATE public.tasks SET execution_state='running',attempt_count=1,lease_token=token,lease_expires_at=now()+interval '90 seconds' WHERE id=target_job;
+ BEGIN PERFORM public.knowledge_for_employee_task(target_job,gen_random_uuid());RAISE EXCEPTION 'Wrong lease allowed';EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+ refs:=public.knowledge_for_employee_task(target_job,token);
+ IF jsonb_array_length(refs)<>3 OR EXISTS(SELECT 1 FROM jsonb_array_elements(refs) r WHERE length(r->>'excerpt')>800 OR r->>'manager_agent_id'<>cmo::text OR r->>'source_task_id'=target::text) THEN RAISE EXCEPTION 'Cross-manager bounded reuse failed';END IF;
+ w:=public.create_work_order('NEBULA812 newer source','NEBULA812','Fixture only',cmo,gen_random_uuid());
+ SELECT (result->>'current_job_id')::uuid INTO j FROM public.tasks WHERE id=w;
+ UPDATE public.tasks SET execution_state='running',attempt_count=1,lease_token=token,lease_expires_at=now()+interval '90 seconds' WHERE id=j;
+ PERFORM public.complete_chat_reply(j,token,'NEBULA812 newer accepted fixture','[]');
+ PERFORM public.review_work_order(w,j,'accept','Fixture');
+ again:=public.knowledge_for_employee_task(target_job,token);
+ IF refs IS DISTINCT FROM again THEN RAISE EXCEPTION 'Retry changed pinned references';END IF;
+ UPDATE public.tasks SET lease_expires_at=now()-interval '1 second' WHERE id=target_job;
+ BEGIN PERFORM public.knowledge_for_employee_task(target_job,token);RAISE EXCEPTION 'Expired lease allowed';EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+ PERFORM set_config('request.jwt.claim.sub',gen_random_uuid()::text,true);
+ BEGIN PERFORM public.search_company_knowledge('NEBULA812',20);RAISE EXCEPTION 'Non CEO allowed';EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+ IF has_table_privilege('authenticated','public.company_knowledge','INSERT') OR has_table_privilege('authenticated','public.company_knowledge','UPDATE') OR has_table_privilege('authenticated','public.tasks','UPDATE') OR has_function_privilege('authenticated','public.knowledge_for_employee_task(uuid,uuid)','EXECUTE') OR has_function_privilege('anon','public.search_company_knowledge(text,int)','EXECUTE') THEN RAISE EXCEPTION 'Browser privilege too broad';END IF;
+END $test$;
+SET LOCAL ROLE authenticated;
+DO $rls$ BEGIN IF EXISTS(SELECT 1 FROM public.company_knowledge) THEN RAISE EXCEPTION 'Cross-company RLS leak';END IF;END $rls$;
+RESET ROLE;
+ROLLBACK;
+SELECT 'PASS: acceptance-only archive, immutable versions, idempotency, bounded cross-manager retrieval, pinned retries, lease denial, write restrictions and tenant RLS; rolled back' AS checks;
