@@ -8,6 +8,11 @@ const ask={...turn,id:'previous',job_id:'q',content:'哪些能力需要证据？
 const reply={...turn,phase:1,agent_id:'cpo'};
 const recipientJob={...job,assigned_agent_id:'cpo'};
 assert.equal(projectDialogueContext(recipientJob,reply,d,[ask],{id:'cpo',code:'CPO',title:'product'}).limit,5000);
+const scoped=JSON.parse(projectDialogueContext(recipientJob,reply,{...d,snapshot:{goal:'仅核对两步文本交接',integration_acceptance:'核对链接与证据，不制作视频',accepted_sources:[{content:'建议制作视频，尚未执行'}]}},[ask],{id:'cpo',code:'CPO',title:'product'}).input);
+assert.equal(scoped.project_scope.goal,'仅核对两步文本交接');
+assert.equal(scoped.project_scope.integration_acceptance,'核对链接与证据，不制作视频');
+assert.equal(scoped.project_scope.accepted_sources,undefined);
+assert.deepEqual(scoped.historical_delivery_excerpts,[{content:'建议制作视频，尚未执行'}]);
 for(const args of [[job,turn,{...d,created_by:'other'},[],{id:'cmo'}],[job,{...turn,round_number:3},d,[],{id:'cmo'}],[recipientJob,reply,d,[],{id:'cpo'}],[recipientJob,reply,d,[{...ask,discussion_id:'foreign'}],{id:'cpo'}],[job,turn,{...d,state:'completed'},[],{id:'cmo'}]])assert.throws(()=>projectDialogueContext(...args));
 assert.throws(()=>validateDialogueAnswer('',1400));assert.throws(()=>validateDialogueAnswer('x'.repeat(1401),1400));assert.equal(validateDialogueAnswer(' ok ',1400),'ok');
 assert.throws(()=>discussionReferences([{}, {}, {}]));
