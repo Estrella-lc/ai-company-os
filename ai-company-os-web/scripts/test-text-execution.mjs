@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {textExecutionContext} from '../../supabase/functions/cto-task-worker/text-execution.ts';
+import {textExecutionContext,employeeDelivery} from '../../supabase/functions/cto-task-worker/text-execution.ts';
 const job={id:'job',created_by:'ceo',assigned_agent_id:'manager',conversation_id:'chat',input:{employee_id:'employee',work_order_id:'order',capability:'text_delivery_v1'}};
 const employee={id:'employee',created_by:'ceo',manager_agent_id:'manager',name:'CMO 文本执行员',role:'text_executor'};
 const order={id:'order',created_by:'ceo',assigned_agent_id:'manager',conversation_id:'chat',input:{employee_id:'employee',capability:'text_delivery_v1'},result:{current_job_id:'job'}};
@@ -9,3 +9,8 @@ for(const bad of [{...employee,created_by:'another-company'},{...employee,manage
 for(const bad of [{...order,result:{current_job_id:'stale'}},{...order,conversation_id:'other'},{...order,created_by:'other'},{...order,input:{employee_id:'forged',capability:'text_delivery_v1'}},null])assert.throws(()=>textExecutionContext(job,employee,bad,manager),/INVALID_TASK_BINDING/);
 assert.throws(()=>textExecutionContext({...job,input:{...job.input,capability:'arbitrary_tool'}},employee,order,manager),/INVALID_TASK_BINDING/);
 console.log('PASS: employee identity, company/manager/conversation binding, stale execution and bounded capability');
+const prefix=textExecutionContext(job,employee,order,manager).prefix;
+assert.equal(employeeDelivery(prefix+prefix+'正文',prefix),prefix+'正文');
+assert.equal(employeeDelivery('原始高管回答',''),'原始高管回答');
+assert.equal(employeeDelivery('正文中保留引用：'+prefix,prefix),prefix+'正文中保留引用：'+prefix);
+console.log('PASS: repeated leading employee headers removed without changing direct replies or inline quotations');
