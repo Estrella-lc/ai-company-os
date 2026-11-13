@@ -1,0 +1,19 @@
+"use client";
+import Link from 'next/link';
+import {useEffect,useState} from 'react';
+type Connection={id:string;name:string;status:string;package:{version:string}};
+type Research={skills:{status:string}[];jobs:{execution_state:string}[]};
+export default function SkillsHub(){
+ const [connections,setConnections]=useState<Connection[]|null>(null),[research,setResearch]=useState<Research|null>(null),[subtitleReady,setSubtitleReady]=useState<boolean|null>(null),[errors,setErrors]=useState<string[]>([]);
+ useEffect(()=>{const controller=new AbortController();void Promise.allSettled(['/api/integrations','/api/skills','/api/subtitles'].map(async url=>{const r=await fetch(url,{cache:'no-store',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(20000)])});if(!r.ok)throw new Error(r.status===401?'请先登录CEO账户':'部分能力状态暂时无法读取');return r.json();})).then(results=>{if(controller.signal.aborted)return;const failures:string[]=[];results.forEach((r,i)=>{if(r.status==='rejected'){failures.push(r.reason instanceof Error?r.reason.message:'读取失败');return;}if(i===0)setConnections(r.value.connections);if(i===1)setResearch(r.value);if(i===2)setSubtitleReady(r.value.managerIds.length>0);});setErrors([...new Set(failures)]);});return()=>controller.abort();},[]);
+ const available=connections?.filter(c=>c.status==='available');
+ return <main><header className="workspace-hero"><div><p className="workspace-eyebrow">CAPABILITY LIBRARY</p><h1>公司的能力，在这里积累</h1><p className="workspace-description">任务决定要完成什么，技能决定怎样完成。经过验证的能力统一沉淀，供公司员工复用。</p></div><span className="workspace-outline-tag">技能 · 研究 · 验证</span></header>
+ {errors.length>0 && <p role="alert" className="workspace-error mt-5">{errors.join('；')}。未读取的状态不会计为已掌握能力。</p>}
+ <div className="workspace-section-heading"><div><h2>现有业务能力</h2><p>从技能进入任务；交付进度与验收记录仍归属于任务。</p></div><Link href="/tasks">查看公司任务 →</Link></div>
+ <section className="skill-catalog" aria-label="公司技能目录"><article className="skill-card"><div className="skill-card-top"><span className="skill-symbol">Aa</span><span className="skill-tag">基础能力</span></div><h2>专业文本交付</h2><p>由高管组织文本执行员工，按目标和标准提交成果。支持知识引用、退回修改与CEO验收。</p><ul><li>规划与文案</li><li>知识复用</li><li>版本验收</li></ul><Link href="/tasks"><span>创建文本任务</span><span>↗</span></Link></article>
+ <article className="skill-card"><div className="skill-card-top"><span className="skill-symbol violet">▤</span><span className={'skill-tag '+(subtitleReady===true?'':'pending')}>{subtitleReady===null?'正在读取状态':subtitleReady?'已有验证入口':'需完成技能验证'}</span></div><h2>字幕烧录</h2><p>用已有SRT为短视频添加字幕，下载成片并验收。适合已有字幕文件的短视频后期处理。</p><ul><li>MP4 + SRT</li><li>私有素材</li><li>成片验收</li></ul><Link href="/skills/subtitles"><span>进入字幕技能</span><span>↗</span></Link></article></section>
+ <div className="workspace-section-heading"><div><h2>发现新能力，复用已有技术</h2><p>优先连接成熟技术，缺少条件时说明阻塞原因。</p></div></div>
+ <section className="skill-bottom-grid"><article className="skill-discovery-callout"><h2>交给研究员工，寻找合适工具</h2><p>提出业务能力缺口，由研究员工检查来源、许可证与运行条件，经过隔离和业务验证后再登记可调用能力。</p><Link href="/skills/research">发现与接入 →</Link><div className="skill-metrics"><div><strong>{research?research.skills.length:'—'}</strong><span>已登记研究资料</span></div><div><strong>{research?research.jobs.filter(j=>['queued','running'].includes(j.execution_state)).length:'—'}</strong><span>资料研究排队 / 执行</span></div><div><strong>{available?available.length:'—'}</strong><span>可用技术连接</span></div></div></article>
+ <article className="skill-connections"><h2>公司共享技术连接</h2><p>只有实际通过接入验证的工具才列为可用。研究说明、样例通过和完整商业能力是不同层级。</p>{available?.map(c=><div className="skill-connection-item" key={c.id}><span>{c.name}</span><span>{c.package.version}</span></div>)}{available?.length===0 && <div className="workspace-callout mt-5">暂无已完成真实接入验收的共享工具连接。现有文本和字幕入口保持原有执行方式。</div>}<Link href="/skills/research" className="block mt-5 text-xs text-slate-400">查看验证记录与阻塞原因 →</Link></article></section>
+ </main>;
+}
