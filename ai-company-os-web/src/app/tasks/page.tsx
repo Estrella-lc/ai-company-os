@@ -1,7 +1,7 @@
 "use client";
 import Link from 'next/link';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import {useSearchParams} from 'next/navigation';
+import {useRouter,useSearchParams} from 'next/navigation';
 import KnowledgeReferences,{type KnowledgeReference} from '@/components/knowledge-references';
 import QualityReport,{type QualityReview} from '@/components/quality-report';
 type Agent={id:string;code:string;title:string;is_active:boolean};
@@ -17,13 +17,16 @@ function status(order:Order,jobs:Job[],quality:QualityReview[]) {
  return ({queued:'排队中',running:'执行中',succeeded:'待验收',failed:'执行失败',cancelled:'已取消'} as Record<string,string>)[j?.execution_state || ''] || '读取中';
 }
 function TasksContent(){
- const requestedTask=useSearchParams().get('task') || '';
+ const params=useSearchParams(),router=useRouter();
+ const requestedTask=params.get('task') || '',creating=params.get('new')==='1';
+ const [query,setQuery]=useState(''),[filter,setFilter]=useState('all'),[page,setPage]=useState(1),[tab,setTab]=useState('delivery');
+ function navigate(id=''){setSelected(id);setNote('');setError('');setTab('delivery');router.push(id?'/tasks?task='+id:'/tasks',{scroll:false});}
  const [agents,setAgents]=useState<Agent[]>([]),[orders,setOrders]=useState<Order[]>([]),[jobs,setJobs]=useState<Job[]>([]),[replies,setReplies]=useState<Reply[]>([]);
  const [selected,setSelected]=useState(''),[title,setTitle]=useState(''),[brief,setBrief]=useState(''),[acceptance,setAcceptance]=useState(''),[agentId,setAgentId]=useState(''),[note,setNote]=useState('');
  const [error,setError]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
  const [quality,setQuality]=useState<QualityReview[]>([]);
  const requestKey=useRef(''),sequence=useRef(0);
- useEffect(()=>{if(!requestedTask)return;const timer=setTimeout(()=>{setSelected(requestedTask);setNote('');},0);return()=>clearTimeout(timer);},[requestedTask]);
+ useEffect(()=>{const timer=setTimeout(()=>{setSelected(requestedTask);setNote('');setTab('delivery');},0);return()=>clearTimeout(timer);},[requestedTask]);
 
  const load=useCallback(async()=>{
   const seq=++sequence.current;
@@ -32,7 +35,7 @@ function TasksContent(){
    if(!response.ok) throw new Error(data.error || '无法读取任务');
    if(seq!==sequence.current)return;
    setOrders(data.orders);setJobs(data.jobs);setReplies(data.replies);setQuality(data.quality);
-   setSelected(old=>old || new URLSearchParams(window.location.search).get('task') || data.orders[0]?.id || '');
+
   } catch(e){if(seq===sequence.current)setError(e instanceof Error?e.message:'加载失败');}
   finally{if(seq===sequence.current)setLoading(false);}
  },[]);
@@ -53,7 +56,7 @@ function TasksContent(){
   try{
    const r=await fetch('/api/work-orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,brief,acceptance,agentId,requestKey:requestKey.current})});const d=await r.json();
    if(!r.ok)throw new Error(d.error || '创建失败');
-   setSelected(d.id);window.history.replaceState(null,'','?task='+d.id);setNote('');setTitle('');setBrief('');setAcceptance('');requestKey.current='';await load();
+   navigate(d.id);setTitle('');setBrief('');setAcceptance('');requestKey.current='';await load();
   }catch(e){setError(e instanceof Error?e.message:'创建失败，可重试');}finally{setBusy(false);}
  }
  async function review(action:'accept'|'revise'){
@@ -63,12 +66,16 @@ function TasksContent(){
    if(!r.ok)throw new Error(d.error || '操作失败');setNote('');await load();
   }catch(e){setError(e instanceof Error?e.message:'操作失败');}finally{setBusy(false);}
  }
- return <main className="min-h-screen bg-[#0b1020] text-slate-100 p-5 md:p-9">
-  <header className="max-w-6xl mx-auto mb-6 flex flex-wrap items-center justify-between gap-4"><div><p className="text-xs text-slate-500">AI COMPANY OS</p><h1 className="text-2xl font-bold mt-2">任务中心</h1><p className="text-sm text-slate-400 mt-2">高管组织文本执行员工交付，COS可直接处理简单任务，由 CEO 最终验收。</p></div><Link href="/" className="text-blue-400 shrink-0">返回 CEO 总部</Link><Link href="/plans" className="text-blue-400 shrink-0">交给 COS 规划</Link></header>
-  {error && <p role="alert" className="max-w-6xl mx-auto mb-4 rounded-lg border border-red-500 p-3 text-red-300">{error}</p>}
-  <div className="max-w-6xl mx-auto grid lg:grid-cols-[340px_1fr] gap-6">
-   <aside className="space-y-6">
-    <form onSubmit={create} onChange={()=>{requestKey.current='';}} className="rounded-xl border border-slate-800 bg-[#151e32] p-5 space-y-4">
+
+ const bucket=(w:Order)=>{const state=status(w,jobs,quality);return w.result.review_state==='accepted'?'done':state.includes('失败')||state==='已取消'||state==='质检需返工'||state==='待人工核实'?'attention':state.includes('验收')?'review':'active';};
+ const filters=[['all','全部任务'],['active','执行中'],['review','待验收'],['attention','需处理'],['done','已完成']];
+ const visible=orders.filter(w=>(filter==='all'||bucket(w)===filter)&&[w.title,w.input.employee_name,agents.find(a=>a.id===w.assigned_agent_id)?.code].join(' ').toLowerCase().includes(query.toLowerCase()));
+ const pages=Math.max(1,Math.ceil(visible.length/10)),safePage=Math.min(page,pages),rows=visible.slice((safePage-1)*10,safePage*10);
+ const renderRun=(run:Run,i:number)=>{const reply=replies.find(r=>r.reply_task_id===run.job_id),job=jobs.find(j=>j.id===run.job_id);return <article key={run.job_id} className="space-y-4"><div className="flex flex-wrap justify-between gap-3"><h3 className="font-semibold">第 {i+1} 版成果</h3><span className="text-xs text-slate-500">{job?.execution_state==='succeeded'?'已交付':'执行状态：'+(job?.execution_state||'读取中')}</span></div>{run.feedback&&<p className="rounded-lg bg-amber-500/5 p-4 text-sm text-amber-200 whitespace-pre-wrap">修改意见：{run.feedback}</p>}{reply?<p className="whitespace-pre-wrap break-words text-sm leading-8">{reply.content}</p>:<p role="status" className="text-slate-400 text-sm">{job?.execution_state==='failed'?'执行失败，可在质检验收中填写意见后重新提交。':job?.execution_state==='cancelled'?'执行已取消。':'后台处理中，离开页面不会丢失任务。'}</p>}<KnowledgeReferences references={job?.knowledge||[]}/>{job?.last_error_code&&<p className="text-xs text-amber-300">执行记录：{job.last_error_code}</p>}</article>;};
+ return <main className="space-y-6">
+ <header className="workspace-hero"><div><p className="workspace-eyebrow">TASK OPERATIONS</p><h1>{creating?'新建任务':selected?'任务详情':'任务中心'}</h1><p className="workspace-description">{selected?'查看当前成果，再完成独立质检与CEO验收。':'按状态管理交付；复杂目标交给COS拆解，具体工作在这里推进。'}</p></div><div className="flex flex-wrap gap-3">{selected||creating?<button onClick={()=>navigate()} className="task-secondary">← 返回任务列表</button>:<><Link href="/plans" className="task-secondary">COS规划</Link><Link href="/tasks?new=1" className="task-primary">＋ 新建任务</Link></>}</div></header>
+ {error&&<p role="alert" className="rounded-xl border border-red-700 p-4 text-sm text-red-300">{error}</p>}
+ {creating?<section className="task-panel max-w-3xl mx-auto"><p className="text-sm text-slate-400 mb-6">先明确目标与完成标准，再指定负责高管。</p>    <form onSubmit={create} onChange={()=>{requestKey.current='';}} className="space-y-5">
      <h2 className="text-lg font-semibold">创建任务</h2>
      <label className="block text-sm">任务名称<input required maxLength={120} value={title} onChange={e=>setTitle(e.target.value)} className={field+' mt-2'} /></label>
      <label className="block text-sm">负责高管<select required value={agentId} onChange={e=>setAgentId(e.target.value)} className={field+' mt-2'}><option value="" disabled>选择高管</option>{agents.map(a=><option key={a.id} value={a.id}>{a.code} · {a.title}</option>)}</select></label>
@@ -76,27 +83,21 @@ function TasksContent(){
      <label className="block text-sm">验收标准<textarea required maxLength={2000} rows={3} value={acceptance} onChange={e=>setAcceptance(e.target.value)} className={field+' mt-2'} placeholder="例如：含受众、脚本和制作清单，500字以内" /></label>
      <button disabled={busy || !agentId} className="w-full bg-blue-600 rounded-lg p-3 disabled:opacity-40">{busy?'处理中...':'创建并开始执行'}</button>
      <p className="text-xs text-slate-400">新任务由所选高管自动建立并分配文本执行员；COS任务直接处理。沿用按分钟调度，生成成果不等于验收完成。</p>
-    </form>
-    <section className="rounded-xl border border-slate-800 p-4"><h2 className="font-semibold mb-3">我的任务</h2>{loading && <p>正在读取任务...</p>}{!loading && !orders.length && <p className="text-sm text-slate-400">创建第一个任务，开始交付流程。</p>}
-     <div className="space-y-2">{orders.map(w=><button key={w.id} onClick={()=>{setSelected(w.id);window.history.replaceState(null,'','?task='+w.id);setNote('');setError('');}} className={'w-full text-left rounded-lg p-3 border '+(selected===w.id?'border-blue-500 bg-blue-500/10':'border-slate-800')}><span className="block font-medium break-words">{w.title}</span><span className="text-xs text-slate-400">{agents.find(a=>a.id===w.assigned_agent_id)?.code || '高管'} · {status(w,jobs,quality)}</span></button>)}</div>
-    </section>
-   </aside>
-   <section className="rounded-xl border border-slate-800 bg-[#151e32] p-5 min-w-0">
-    {!order ? <p className="text-slate-400">选择任务查看进度和成果。</p> : <>
-     <div className="flex flex-wrap justify-between gap-3"><h2 className="text-xl font-semibold break-words">{order.title}</h2><span className="text-emerald-400">{status(order,jobs,quality)}</span></div>
-     <p className="text-sm text-slate-400 mt-2">负责高管：{agents.find(a=>a.id===order.assigned_agent_id)?.code || '高管'}</p>
-     <p className="text-sm text-cyan-200 mt-2">执行：{order.input.employee_name || '高管直接处理（历史任务保持原执行方式）'}{order.input.employee_id?' · 能力：文本交付 · CEO最终验收':''}</p>
-     <h3 className="font-semibold mt-5">目标与资料</h3><p className="whitespace-pre-wrap break-words mt-2 text-sm">{order.description}</p>
+    </form></section>:!selected?<>
+ <section aria-label="任务状态概览" className="task-metrics">{filters.slice(1).map(([key,label])=><button key={key} aria-pressed={filter===key} onClick={()=>{setFilter(key);setPage(1);}} className={'task-metric '+(filter===key?'is-active':'')}><span>{label}</span><strong>{orders.filter(w=>bucket(w)===key).length}</strong></button>)}</section>
+ <section className="task-panel"><div className="flex flex-wrap items-center justify-between gap-4 mb-5"><div><h2 className="text-lg font-semibold">任务列表</h2><p className="text-xs text-slate-500 mt-2">每页10项，点击任务进入独立详情。</p></div><label className="w-full sm:w-72"><span className="sr-only">搜索任务</span><input type="search" value={query} onChange={e=>{setQuery(e.target.value);setPage(1);}} placeholder="搜索名称、员工或高管" className={field}/></label></div><nav aria-label="筛选任务状态" className="task-tabs mb-5">{filters.map(([key,label])=><button key={key} aria-pressed={filter===key} onClick={()=>{setFilter(key);setPage(1);}} className={filter===key?'is-active':''}>{label}{key==='all'?' · '+orders.length:''}</button>)}</nav>
+ {loading?<p role="status" className="p-8 text-center text-slate-400">正在读取任务...</p>:!rows.length?<div className="py-12 text-center"><h3 className="font-medium">{orders.length?'没有符合条件的任务':'开始第一项交付'}</h3><p className="text-sm text-slate-400 mt-3">{orders.length?'试试其他状态或搜索词。':'创建任务，或让COS先组织项目分工。'}</p></div>:<div className="task-list">{rows.map(w=><Link key={w.id} href={'/tasks?task='+w.id} className="task-row"><span className="task-row-symbol">{agents.find(a=>a.id===w.assigned_agent_id)?.code||'AI'}</span><span className="min-w-0 flex-1"><strong className="block text-sm break-words">{w.title}</strong><small className="block text-slate-500 mt-2">{w.input.employee_name||'高管直接处理'} · {new Date(w.created_at).toLocaleDateString('zh-CN')} · {w.input.runs.length}版成果</small></span><span className={'task-status '+bucket(w)}>{status(w,jobs,quality)}</span><span aria-hidden="true" className="text-slate-500">↗</span></Link>)}</div>}
+ <div className="flex flex-wrap items-center justify-between gap-4 mt-5 pt-5 border-t border-slate-800 text-xs text-slate-400"><span>共 {visible.length} 项 · 第 {safePage} / {pages} 页</span><div className="flex gap-3"><button className="task-secondary" disabled={safePage<=1} onClick={()=>setPage(safePage-1)}>上一页</button><button className="task-secondary" disabled={safePage>=pages} onClick={()=>setPage(safePage+1)}>下一页</button></div></div></section></>:!order?<section className="task-panel"><p role="status" className="text-slate-400">{loading?'正在读取任务...':'当前任务不存在或不在最近任务列表中。请返回任务列表查看。'}</p></section>:<>
+ <section className="task-panel"><div className="flex flex-wrap justify-between gap-4"><div className="min-w-0"><p className="text-xs text-slate-500 mb-3">{agents.find(a=>a.id===order.assigned_agent_id)?.code||'高管'} 负责 · {order.input.employee_name||'高管直接处理'}</p><h2 className="text-xl font-semibold break-words">{order.title}</h2></div><span className={'task-status '+bucket(order)}>{status(order,jobs,quality)}</span></div><ol className="task-steps" aria-label="交付进度">{['任务已建立','员工执行','独立质检','CEO验收'].map((label,i)=><li key={label} className={(i===0||i===1&&current?.execution_state==='succeeded'||i===2&&inspection?.report?.verdict==='pass'||i===3&&order.result.review_state==='accepted')?'is-complete':''}><span>{i+1}</span>{label}</li>)}</ol></section>
+ <nav aria-label="任务详情栏目" className="task-tabs">{[['delivery','当前成果'],['quality','质检与验收'],['brief','任务说明'],['history','版本历史 · '+order.input.runs.length]].map(([key,label])=><button key={key} aria-pressed={tab===key} onClick={()=>setTab(key)} className={tab===key?'is-active':''}>{label}</button>)}</nav>
+ <section className="task-panel" aria-label="任务详情内容">
+ {tab==='delivery'&&<>{order.input.runs.find(r=>r.job_id===order.result.current_job_id)?renderRun(order.input.runs.find(r=>r.job_id===order.result.current_job_id)!,order.input.runs.findIndex(r=>r.job_id===order.result.current_job_id)):<p className="text-slate-400">当前版本正在准备。</p>}<button onClick={()=>setTab('quality')} className="task-secondary mt-6">查看质检并验收 →</button></>}
+ {tab==='brief'&&<>     <h3 className="font-semibold mt-5">目标与资料</h3><p className="whitespace-pre-wrap break-words mt-2 text-sm">{order.description}</p>
      <h3 className="font-semibold mt-5">验收标准</h3><p className="whitespace-pre-wrap break-words mt-2 text-sm">{order.input.acceptance}</p>
-     <h3 className="font-semibold mt-6">交付记录</h3>
-     <p className="text-xs text-indigo-200 mt-3">新文本任务交付后自动独立质检，明确不合格时最多自动返工1次；仍不通过或无法核实则交给CEO处理。质检不代替项目全流程验证。</p>
-     {order.input.runs.map((run,i)=>{const reply=replies.find(r=>r.reply_task_id===run.job_id),job=jobs.find(j=>j.id===run.job_id);return <article key={run.job_id} className="border border-slate-700 rounded-lg p-4 mt-3"><h4 className="font-medium">第 {i+1} 版</h4><KnowledgeReferences references={job?.knowledge || []}/>{run.feedback && <p className="text-sm text-amber-300 whitespace-pre-wrap mt-2">修改意见：{run.feedback}</p>}{reply?<p className="whitespace-pre-wrap break-words text-sm mt-3">{reply.content}</p>:<p className="text-slate-400 text-sm mt-3">{job?.execution_state==='failed'?'执行失败，可填写意见后重新提交。':job?.execution_state==='cancelled'?'执行已取消。':'后台处理中，刷新页面不会丢失任务。'}</p>}{quality.find(q=>q.source_job_id===run.job_id) && <QualityReport review={quality.find(q=>q.source_job_id===run.job_id)!}/>}{job?.last_error_code && <p className="text-xs text-amber-300 mt-2">{['queued','running'].includes(job.execution_state)?'自动重试中':'执行记录'}：{job.last_error_code}</p>}</article>})}
-     {(!inspection || !inspection.report && ['failed','cancelled'].includes(inspection.job?.execution_state)) && current?.execution_state==='succeeded' && <button disabled={busy} onClick={()=>void inspect()} className="border border-indigo-600 rounded-lg p-3 mt-4 text-sm">{inspection?'重试失败的质检':'为当前版本启动独立质检'}</button>}{order.result.review_state==='accepted'?<p className="text-emerald-400 mt-5">CEO 已验收通过。{order.result.review_note && '验收意见：'+order.result.review_note}</p>:<div className="mt-6 border-t border-slate-700 pt-5">{inspection?.report?.verdict==='needs_human' && <p className="text-xs text-amber-200 mb-3">若报告没有明确不合格项，你可实际核查后填写至少20字的证据再验收；无法确认时请退回修改。</p>}<label className="block text-sm">验收或修改意见<textarea value={note} onChange={e=>setNote(e.target.value)} rows={3} maxLength={2000} className={field+' mt-2'} /></label><div className="flex flex-wrap gap-3 mt-3"><button disabled={busy || current?.execution_state!=='succeeded' || !!order.input.quality_required && inspection?.report?.verdict!=='pass' && !manualAllowed} onClick={()=>void review('accept')} className="bg-emerald-700 rounded-lg px-4 py-3 disabled:opacity-40">{inspection?.report?.verdict==='needs_human'?'附人工核查依据后验收':'验收通过'}</button><button disabled={busy || !note.trim() || !['succeeded','failed','cancelled'].includes(current?.execution_state || '')} onClick={()=>void review('revise')} className="border border-amber-500 rounded-lg px-4 py-3 disabled:opacity-40">退回修改并重新执行</button></div></div>}
-    </>}
-   </section>
-  </div>
+</>}
+ {tab==='history'&&<><h3 className="font-semibold">交付版本历史</h3><p className="text-xs text-slate-400 mt-2 mb-5">历史版本按需展开，当前成果以任务指定版本为准。</p>{[...order.input.runs].reverse().map((run,n)=><details key={run.job_id} className="border-t border-slate-700 py-4"><summary className="text-sm">第 {order.input.runs.length-n} 版{run.job_id===order.result.current_job_id?' · 当前版本':''}{run.feedback?' · 含修改意见':''}</summary><div className="pt-5">{renderRun(run,order.input.runs.length-n-1)}{quality.find(q=>q.source_job_id===run.job_id)&&<QualityReport review={quality.find(q=>q.source_job_id===run.job_id)!}/>}</div></details>)}</>}
+ {tab==='quality'&&<><h3 className="font-semibold">独立质检与CEO二轮验收</h3><p className="text-xs text-slate-400 mt-3 mb-5 leading-6">文本交付后自动质检，明确不合格时最多自动返工1次。质检不代替CEO决定，也不代表项目全流程已经运行。</p>{inspection?<QualityReport review={inspection}/>:<p className="text-sm text-slate-400">{order.input.quality_required?'成果交付后将启动独立质检。':'历史任务沿用原验收规则，可手动补充质检。'}</p>}     {(!inspection || !inspection.report && ['failed','cancelled'].includes(inspection.job?.execution_state)) && current?.execution_state==='succeeded' && <button disabled={busy} onClick={()=>void inspect()} className="border border-indigo-600 rounded-lg p-3 mt-4 text-sm">{inspection?'重试失败的质检':'为当前版本启动独立质检'}</button>}{order.result.review_state==='accepted'?<p className="text-emerald-400 mt-5">CEO 已验收通过。{order.result.review_note && '验收意见：'+order.result.review_note}</p>:<div className="mt-6 border-t border-slate-700 pt-5">{inspection?.report?.verdict==='needs_human' && <p className="text-xs text-amber-200 mb-3">若报告没有明确不合格项，你可实际核查后填写至少20字的证据再验收；无法确认时请退回修改。</p>}<label className="block text-sm">验收或修改意见<textarea value={note} onChange={e=>setNote(e.target.value)} rows={3} maxLength={2000} className={field+' mt-2'} /></label><div className="flex flex-wrap gap-3 mt-3"><button disabled={busy || current?.execution_state!=='succeeded' || !!order.input.quality_required && inspection?.report?.verdict!=='pass' && !manualAllowed} onClick={()=>void review('accept')} className="bg-emerald-700 rounded-lg px-4 py-3 disabled:opacity-40">{inspection?.report?.verdict==='needs_human'?'附人工核查依据后验收':'验收通过'}</button><button disabled={busy || !note.trim() || !['succeeded','failed','cancelled'].includes(current?.execution_state || '')} onClick={()=>void review('revise')} className="border border-amber-500 rounded-lg px-4 py-3 disabled:opacity-40">退回修改并重新执行</button></div></div>}</>}
+ </section></>}
  </main>;
 }
-
-
 export default function TasksPage(){return <Suspense fallback={<p className="p-6">正在读取任务入口...</p>}><TasksContent/></Suspense>;}
