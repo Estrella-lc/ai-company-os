@@ -16,11 +16,22 @@ export async function discoverSkills(input,fetcher=fetch){
   if(!response.ok)throw new Error('GitHub request '+response.status);
   const text=await response.text();if(text.length>5000000)throw new Error('Source response too large');return raw?text:JSON.parse(text);
  }
+ // Company adaptation of skills/find-skills: consult the catalog before GitHub fallback.
+ let catalog=[];
+ try{
+  const response=await fetcher('https://skills.sh/',{signal:AbortSignal.timeout(15000)});
+  if(!response.ok)throw new Error('Catalog request '+response.status);
+  const html=await response.text();if(html.length>5000000)throw new Error('Catalog too large');
+  const words=String(input.query || '').toLowerCase().split(/\s+/).filter(w=>w.length>2 && !['agent','skills'].includes(w));
+  const links=[...html.matchAll(/href=["']\/(?:([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+))["']/g)];
+  catalog=[...new Set(links.filter(m=>words.some(w=>m[0].toLowerCase().includes(w))).map(m=>m[1]+'/'+m[2]))].slice(0,2);
+  trace.push({action:'find_skills_catalog',source:'https://skills.sh/',repositories:catalog});
+ }catch(e){trace.push({action:'find_skills_catalog',error:String(e.message).slice(0,100)});}
  let found=[];
  try{const search=await get('/search/repositories?q='+encodeURIComponent(input.query+' archived:false')+'&per_page=3&sort=stars');found=(search.items || []).filter(r=>!r.private && repoPattern.test(r.full_name)).map(r=>r.full_name);trace.push({action:'repository_search',query:input.query,count:found.length});}catch(e){trace.push({action:'repository_search',error:String(e.message).slice(0,100)});}
  // Public catalog seeds are discovery fallbacks, not trusted executable code.
  const seeds=input.capability==='subtitles' || input.capability==='video'?['remotion-dev/skills']:input.capability==='documents'?['anthropics/skills']:['vercel-labs/agent-skills'];
- const repositories=[...new Set([...seeds,...found])].slice(0,3),candidates=[];
+ const repositories=[...new Set([...catalog,...seeds,...found])].slice(0,3),candidates=[];
  for(const repository of repositories){
   try{
    const repo=await get('/repos/'+repository);if(repo.private || repo.archived)continue;
@@ -42,4 +53,3 @@ export async function discoverSkills(input,fetcher=fetch){
  }
  return {candidates,trace};
 }
-
