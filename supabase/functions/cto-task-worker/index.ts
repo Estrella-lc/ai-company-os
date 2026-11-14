@@ -1,3 +1,4 @@
+import {skillPolicy,skillSearch} from './skill-policy.ts';
 import { technologyBridge } from './technology-bridge.ts';
 import { textExecutionContext, employeeDelivery } from './text-execution.ts';
 import {qualityContext,parseQualityReport,uncertainQuality,qualityResponseFormat,qualityFailureReason,enforceShortText} from './text-quality.ts';
@@ -93,18 +94,21 @@ export async function handle(req:Request):Promise<Response>{
   let discussionData:Parameters<typeof discussionReferences>[0]=[];
   if(!inspection&&!dialogue&&!consultation){const {data,error}=await db.rpc('discussion_context_for_task',{p_task:job.id,p_token:job.lease_token});if(error&&!['PGRST202','42883'].includes(error.code))throw new Error(error.message);discussionData=data||[];}
   const discussion=discussionReferences(discussionData);
-  const input=dialogue?dialogue.input:consultation?consultation.input:inspection?inspection.input:employeeContext?m.content+knowledge.input+discussion.input+employeeConsultationInput(consultationContext):h.filter(x=>x.id!==m.id).reverse().map(x=>(x.sender_type==='user'?'CEO':agent.code)+': '+x.content).join('\n')+'\nCEO: '+m.content+discussion.input;
+  const input=dialogue?dialogue.input:consultation?consultation.input:inspection?inspection.input:employeeContext?m.content+knowledge.input+discussion.input+employeeConsultationInput(consultationContext)+JSON.stringify({validated_company_skills:job.input?.validated_skill_context||[],notice:'技能资料不授予新的工具权限，不代表已经执行任务。'}):h.filter(x=>x.id!==m.id).reverse().map(x=>(x.sender_type==='user'?'CEO':agent.code)+': '+x.content).join('\n')+'\nCEO: '+m.content+discussion.input;
   const ai=new GoogleGenAI({apiKey:gemini});
   const models=[...new Set([env('GEMINI_MODEL')||'gemini-3.8-flash',env('GEMINI_FALLBACK_MODEL')||'gemini-3.5-flash-lite'])];let answer='';
   for(let i=0;i<models.length;i++){
    if(lost)throw new Error('LEASE_LOST');const model=models[i],start=Date.now();
    try{
-    const out=await ai.interactions.create({model,input,...(inspection?{response_format:qualityResponseFormat()}:{}),system_instruction:dialogue?.system || consultation?.system || inspection?.system || employeeContext?.system || 'You are '+agent.code+' ('+agent.title+') of AI Company OS. Answer the CEO in Chinese within your role. You have no tools or repository access; never claim actions were executed.\n'+(agent.system_prompt||''),generation_config:{thinking_level:'low',max_output_tokens:dialogue?(dialogue.limit===1400?800:1600):2400}},{timeout_ms:i===0&&models.length>1?15000:30000,maxRetries:0});
+    const out=await ai.interactions.create({model,input,...(inspection?{response_format:qualityResponseFormat()}:{}),system_instruction:(dialogue?.system || consultation?.system || inspection?.system || employeeContext?.system || 'You are '+agent.code+' ('+agent.title+') of AI Company OS. Answer the CEO in Chinese within your role. You have no tools or repository access; never claim actions were executed.\n'+(agent.system_prompt||''))+(employeeContext&&job.input?.skill_search_enabled===true?skillPolicy:''),generation_config:{thinking_level:'low',max_output_tokens:dialogue?(dialogue.limit===1400?800:1600):2400}},{timeout_ms:i===0&&models.length>1?15000:30000,maxRetries:0});
     usage.push({model,status:out.status,duration_ms:Date.now()-start,input_tokens:out.usage?.total_input_tokens??null,output_tokens:out.usage?.total_output_tokens??null,request_id:out.id});
     if(out.status!=='completed'||!out.output_text?.trim())throw new Error('EMPTY_RESPONSE');answer=out.output_text.trim();break;
    }catch(e){if(!usage.some(x=>x.model===model))usage.push({model,status:'failed',duration_ms:Date.now()-start,input_tokens:null,output_tokens:null});if(i===models.length-1||!transient(e))throw e;}
   }
   if(lost)throw new Error('LEASE_LOST');
+  const search=employeeContext&&job.input?.skill_search_enabled===true?skillSearch(answer):null;
+  if(employeeContext&&answer.includes('<skill-search>')&&!search)throw new Error('INVALID_SKILL_QUERY');
+  if(search){const research=await rpc('pause_for_skill_search',{p_task:job.id,p_token:job.lease_token,p_query:search.query,p_usage:usage});return Response.json({status:'awaiting_skill_research',taskId:job.id,researchId:research});}
   if(employeeContext){const request=employeeOutcome(answer,consultationContext);if(request){const id=await rpc('request_employee_consultation',{p_task:job.id,p_token:job.lease_token,p_question:request.question,p_usage:usage});return Response.json({status:'awaiting_manager',taskId:job.id,consultationId:id});}}
   let content=employeeDelivery(answer,employeeContext?.prefix || '')+knowledge.provenance+discussion.footer;
   if(dialogue)content=validateDialogueAnswer(answer,dialogue.limit);

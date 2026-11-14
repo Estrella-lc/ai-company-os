@@ -1,5 +1,6 @@
 "use client";
 import Link from 'next/link';
+import SkillGapNotice from '@/components/skill-gap-notice';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import {useRouter,useSearchParams} from 'next/navigation';
 import KnowledgeReferences,{type KnowledgeReference} from '@/components/knowledge-references';
@@ -13,6 +14,9 @@ type Reply={id:string;reply_task_id:string;content:string;created_at:string};
 const field='w-full rounded-lg border border-slate-700 bg-[#0b1020] p-3 text-sm';
 function status(order:Order,jobs:Job[],quality:QualityReview[],consultations:EmployeeConsultation[]) {
  if(order.result.review_state==='accepted') return '已完成';
+ const skill=(order.result as Order['result']&{skill_search?:{state:string}}).skill_search;
+ if(skill?.state==='waiting')return '技能检索与验证中';
+ if(skill?.state==='failed')return '技能研究失败';
  const blocking=consultationStatus(consultations.find(c=>c.work_order_id===order.id),order.result.current_job_id);if(blocking)return blocking;
  const j=jobs.find(x=>x.id===order.result.current_job_id);
  if(j?.execution_state==='succeeded' && order.input.quality_required){const q=quality.find(q=>q.source_job_id===order.result.current_job_id);return q?.report?.verdict==='pass'?'待CEO验收':q?.report?.verdict==='revise'?'质检需返工':q?.report?.verdict==='needs_human'?'待人工核实':q?.job?.execution_state==='failed'?'质检失败':'独立质检中';}
@@ -94,7 +98,7 @@ function TasksContent(){
  <div className="flex flex-wrap items-center justify-between gap-4 mt-5 pt-5 border-t border-slate-800 text-xs text-slate-400"><span>共 {visible.length} 项 · 第 {safePage} / {pages} 页</span><div className="flex gap-3"><button className="task-secondary" disabled={safePage<=1} onClick={()=>setPage(safePage-1)}>上一页</button><button className="task-secondary" disabled={safePage>=pages} onClick={()=>setPage(safePage+1)}>下一页</button></div></div></section></>:!order?<section className="task-panel"><p role="status" className="text-slate-400">{loading?'正在读取任务...':'当前任务不存在或不在最近任务列表中。请返回任务列表查看。'}</p></section>:<>
  <section className="task-panel"><div className="flex flex-wrap justify-between gap-4"><div className="min-w-0"><p className="text-xs text-slate-500 mb-3">{agents.find(a=>a.id===order.assigned_agent_id)?.code||'高管'} 负责 · {order.input.employee_name||'高管直接处理'}</p><h2 className="text-xl font-semibold break-words">{order.title}</h2></div><span className={'task-status '+bucket(order)}>{status(order,jobs,quality,consultations)}</span></div><ol className="task-steps" aria-label="交付进度">{['任务已建立','员工执行','独立质检','CEO验收'].map((label,i)=><li key={label} className={(i===0||i===1&&current?.execution_state==='succeeded'||i===2&&inspection?.report?.verdict==='pass'||i===3&&order.result.review_state==='accepted')?'is-complete':''}><span>{i+1}</span>{label}</li>)}</ol></section>
  <nav aria-label="任务详情栏目" className="task-tabs">{[['delivery','当前成果'],['quality','质检与验收'],['brief','任务说明'],['history','版本历史 · '+order.input.runs.length],...(consultation?[['consultation','内部协作']]:[])].map(([key,label])=><button key={key} aria-pressed={tab===key} onClick={()=>setTab(key)} className={tab===key?'is-active':''}>{label}</button>)}</nav>
- <section className="task-panel" aria-label="任务详情内容">
+ <section className="task-panel" aria-label="任务详情内容"><SkillGapNotice result={order.result}/>
  {tab==='consultation'&&consultation&&<EmployeeConsultationPanel record={consultation} currentJobId={order.result.current_job_id} onUpdate={load}/>}
  {tab==='delivery'&&<>{consultation&&<div className="rounded-xl border border-blue-900 bg-blue-500/5 p-4 mb-5"><p className="text-sm text-blue-200">{consultationStatus(consultation,order.result.current_job_id)||'本任务曾向直属高管咨询。'}</p><button onClick={()=>setTab('consultation')} className="text-xs text-blue-300 mt-3">查看内部问答 →</button></div>}{order.input.runs.find(r=>r.job_id===order.result.current_job_id)?renderRun(order.input.runs.find(r=>r.job_id===order.result.current_job_id)!,order.input.runs.findIndex(r=>r.job_id===order.result.current_job_id)):<p className="text-slate-400">当前版本正在准备。</p>}<button onClick={()=>setTab('quality')} className="task-secondary mt-6">查看质检并验收 →</button></>}
  {tab==='brief'&&<>     <h3 className="font-semibold mt-5">目标与资料</h3><p className="whitespace-pre-wrap break-words mt-2 text-sm">{order.description}</p>
