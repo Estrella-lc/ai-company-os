@@ -1,6 +1,6 @@
 import { technologyBridge } from './technology-bridge.ts';
 import { textExecutionContext, employeeDelivery } from './text-execution.ts';
-import {qualityContext,parseQualityReport,uncertainQuality,qualityResponseFormat,qualityFailureReason} from './text-quality.ts';
+import {qualityContext,parseQualityReport,uncertainQuality,qualityResponseFormat,qualityFailureReason,enforceShortText} from './text-quality.ts';
 import {projectDialogueContext,validateDialogueAnswer,discussionReferences} from './project-dialogue.ts';
 import {employeeConsultationInstructions,employeeConsultationInput,employeeOutcome,managerConsultationContext,parseManagerDecision,type ConsultationContext} from './employee-consultation.ts';
 import { knowledgeContext } from './knowledge-context.ts';
@@ -109,7 +109,7 @@ export async function handle(req:Request):Promise<Response>{
   let content=employeeDelivery(answer,employeeContext?.prefix || '')+knowledge.provenance+discussion.footer;
   if(dialogue)content=validateDialogueAnswer(answer,dialogue.limit);
   if(consultation)content=JSON.stringify(parseManagerDecision(answer));
-  if(inspection){try{content=JSON.stringify(parseQualityReport(answer,inspection.body));}catch(e){content=JSON.stringify(uncertainQuality(qualityFailureReason(e)));}}
+  if(inspection){let report;try{report=parseQualityReport(answer,inspection.body);}catch(e){report=uncertainQuality(qualityFailureReason(e));}content=JSON.stringify(enforceShortText(report,inspection.body,inspection.acceptance));}
   await rpc('complete_chat_reply',{p_task:job.id,p_token:job.lease_token,p_content:content,p_usage:usage});
   console.info('EDGE_TASK_SUCCEEDED',{task:job.id});return Response.json({status:'succeeded',taskId:job.id});
  }catch(e){
