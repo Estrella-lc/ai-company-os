@@ -6,7 +6,7 @@ import {promisify} from 'node:util';
 import {runTechnology} from './technology-runner.mjs';
 import {discoverSkills} from './skill-discovery.mjs';
 import {runSubtitleDelivery} from './subtitle-delivery.mjs';
-import {documentResearch,runDocumentJob} from './document-runner.mjs';
+import {documentResearch,runDocumentJob,claimDocumentJob} from './document-runner.mjs';
 const exec=promisify(execFile),root=resolve('.');
 const endpoint='https://mcwkkmkgfienxrmfyvfl.supabase.co/functions/v1/cto-task-worker?skill_runner=1';
 const fixture=process.argv.includes('--fixture'),sandboxOnly=process.argv.includes('--sandbox-only');
@@ -45,7 +45,7 @@ try{
   console.log(JSON.stringify({fixture:'document_research',catalogFirst:report.trace[0]?.action==='find_skills_catalog',verification:adapter.verification}));process.exit(0);
  }
  if(sandboxOnly){console.log(JSON.stringify(await sandbox(['First-party fixture test'],join(evidence,'sandbox'))));process.exit(0);}
- if(!fixture){const document=(await api({action:'document_claim'})).job;if(document){await runDocumentJob(document,api);process.exit(0);}const delivery=(await api({action:'media_claim'})).job;if(delivery){await runSubtitleDelivery(delivery,api);process.exit(0);}}
+ if(!fixture){const document=await claimDocumentJob(api);if(document){await runDocumentJob(document,api);process.exit(0);}const delivery=(await api({action:'media_claim'})).job;if(delivery){await runSubtitleDelivery(delivery,api);process.exit(0);}}
  job=fixture?{id:'local-fixture',input:{query:'subtitle agent skills',capability:'subtitles'}}:(await api({action:'claim'})).job;
  if(!job){console.log('No eligible skill research job.');process.exit(0);}
  if(job.input.mode?.startsWith('technology_')){await runTechnology(job,api);process.exit(0);}
@@ -69,3 +69,4 @@ try{
  if(job && !fixture)try{await api({action:'fail',taskId:job.id,leaseToken:job.lease_token,report:{summary:'研究或验证执行失败，将在预算与次数限制内重试。',error:String(e.message).slice(0,500)}});}catch{console.error('FAIL_CALLBACK_UNAVAILABLE');}
  process.exitCode=1;
 }
+
