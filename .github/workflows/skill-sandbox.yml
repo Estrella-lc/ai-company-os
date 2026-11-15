@@ -6,6 +6,13 @@ on:
         description: 'Only run synthetic document adapter tests; no private files or database claims'
         type: boolean
         default: false
+  pull_request:
+    paths:
+      - 'sandbox/documents/**'
+      - 'skills/document-processing/**'
+      - 'ai-company-os-web/scripts/*document*.mjs'
+      - 'ai-company-os-web/scripts/skill-runner.mjs'
+      - '.github/workflows/skill-sandbox.yml'
   schedule:
     - cron: '0 */2 * * *'
 permissions:
@@ -16,6 +23,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   research:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -48,6 +56,26 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: skill-research-evidence
+          path: ${{ runner.temp }}/ai-company-skill-evidence
+          if-no-files-found: ignore
+          retention-days: 1
+  document-fixture:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Search public skills and validate synthetic PDF and DOCX files
+        run: node ai-company-os-web/scripts/skill-runner.mjs --document-fixture
+      - name: Retain synthetic document evidence briefly
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: document-fixture-evidence
           path: ${{ runner.temp }}/ai-company-skill-evidence
           if-no-files-found: ignore
           retention-days: 1
