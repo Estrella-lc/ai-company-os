@@ -1,0 +1,36 @@
+name: Document web checks
+on:
+  pull_request:
+    paths:
+      - 'ai-company-os-web/src/app/api/documents/**'
+      - 'ai-company-os-web/src/components/document-tasks.tsx'
+      - 'ai-company-os-web/src/lib/document-upload.ts'
+      - 'ai-company-os-web/scripts/test-document-upload.mjs'
+      - '.github/workflows/document-web-check.yml'
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: ai-company-os-web
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: synthetic-ci-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: ai-company-os-web/package-lock.json
+      - run: npm ci
+      - run: node scripts/test-document-upload.mjs
+      - run: npx eslint src/app/api/documents/route.ts src/components/document-tasks.tsx src/lib/document-upload.ts
+      - run: npm run build
+      - run: npx tsc --noEmit
+
