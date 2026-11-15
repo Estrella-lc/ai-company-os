@@ -13,6 +13,9 @@ on:
       - '.github/workflows/project-brief-check.yml'
 permissions:
   contents: read
+concurrency:
+  group: project-brief-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -38,6 +41,6 @@ jobs:
       - run: npm ci
       - run: node scripts/test-project-brief.mjs
       - run: npx eslint src/app/api/briefs/route.ts src/components/brief-tasks.tsx
-      - run: deno check --no-lock ../supabase/functions/cto-task-worker/index.ts
+      - run: deno check --no-lock --node-modules-dir=auto ../supabase/functions/cto-task-worker/index.ts
       - run: npm run build
       - run: npx tsc --noEmit
