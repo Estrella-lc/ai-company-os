@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import {parseBriefPlan,briefPlanContext,briefExecutionContext,renderProjectBrief,advanceBriefWorkflows} from '../../supabase/functions/cto-task-worker/project-brief.ts';
+const source='星河项目处于试点准备阶段。预算尚未确定。';
+const brief={title:'试点项目简报',summary:'根据资料整理，尚未进行外部核查。',facts:[{statement:'项目正在准备试点',source_id:'S1',quote:'星河项目处于试点准备阶段。'}],recommendations:['建议先确认试点客户'],unknowns:['预算尚未确定'],next_steps:['建议负责人确认预算']};
+const valid=JSON.stringify(brief);
+assert.match(renderProjectBrief(valid,source),/原文：“星河项目处于试点准备阶段。”/);
+for(const change of [{facts:[{...brief.facts[0],quote:'预算100万元'}]},{facts:[{...brief.facts[0],source_id:'S2'}]},{facts:[]},{unknowns:[]},{summary:'x'.repeat(1601)}])assert.throws(()=>renderProjectBrief(JSON.stringify({...brief,...change}),source));
+assert.throws(()=>parseBriefPlan('{"manager_code":"COS","assignment":"自己写完","acceptance":"完成"}',['COO','COS']));
+assert.throws(()=>parseBriefPlan('{"manager_code":"FAKE","assignment":"员工执行","acceptance":"完整"}',['COO']));
+assert.equal(parseBriefPlan('```json\n'+JSON.stringify({manager_code:'COO',assignment:'员工提取资料并完成简报',acceptance:'保留原文依据'})+'\n```',['COO']).manager_code,'COO');
+const flow={id:'f',created_by:'owner',state:'planning',plan_job_id:'plan',goal:'生成简报',source_name:'fixture.docx',work_order_id:'order',source_text:source,source_sha256:'hash'};
+assert.throws(()=>briefPlanContext({id:'wrong',created_by:'owner',input:{brief_plan_id:'f'}},flow,'COS',['COO']));
+assert.throws(()=>briefPlanContext({id:'plan',created_by:'other',input:{brief_plan_id:'f'}},flow,'COS',['COO']));
+assert.throws(()=>briefPlanContext({id:'plan',created_by:'owner',input:{brief_plan_id:'f'}},flow,'CTO',['COO']));
+assert.match(briefPlanContext({id:'plan',created_by:'owner',input:{brief_plan_id:'f'}},flow,'COS',['COO']).system,/只负责分工/);
+assert.throws(()=>briefExecutionContext({created_by:'other',input:{brief_flow_id:'f',work_order_id:'order'}},{...flow,state:'executing'}));
+assert.throws(()=>briefExecutionContext({created_by:'owner',input:{brief_flow_id:'f',work_order_id:'old'}},{...flow,state:'executing'}));
+assert.equal(briefExecutionContext({created_by:'owner',input:{brief_flow_id:'f',work_order_id:'order'}},{...flow,state:'executing'}).source,source);
+// Exercise actual orchestration with a private storage transport stub; no network or model calls.
+const calls=[];let downloads=0;
+const chain=result=>({select(){return this;},in(){return this;},order(){return this;},limit(){return Promise.resolve(result);},eq(){return this;},single(){return Promise.resolve(result);}});
+const db={from(table){return chain(table==='brief_workflows'?{data:[{id:'f',created_by:'owner',state:'extracting',document_job_id:'doc'}]}:{data:{state:'succeeded',profile:'pdf_extract_v1',output_path:'owner/doc/lease/result'}});},storage:{from(bucket){assert.equal(bucket,'company-documents');return {async download(path){downloads++;assert.equal(path,'owner/doc/lease/result');return {data:new Blob([source])};}};}}};
+await advanceBriefWorkflows(db,async(name,args)=>calls.push({name,args}));
+assert.equal(downloads,1);assert.deepEqual(calls,[{name:'advance_brief_workflow',args:{p_flow:'f',p_text:source}}]);
+const bad={...db,from(table){return table==='brief_workflows'?db.from(table):chain({data:{state:'succeeded',profile:'docx_create_v1',output_path:'other/doc/lease/result'}});}};
+await assert.rejects(()=>advanceBriefWorkflows(bad,async()=>assert.fail('must not advance foreign artifact')),/INVALID_TASK_BINDING/);
+await advanceBriefWorkflows({from(){return chain({error:{code:'42P01'}});}},async()=>assert.fail('must preserve old worker deployment'));
+console.log('Project brief: plan/ownership/citations/bounds/private-tool routing/rolling deployment tests passed');
