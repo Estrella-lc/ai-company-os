@@ -18,7 +18,7 @@ export function briefExecutionContext(job:{created_by:string;input?:{brief_flow_
 export function renderProjectBrief(raw:string,source:string){
  const b=json(raw);if(!b||!text(b.title,120)||!text(b.summary,1600)||!Array.isArray(b.facts)||b.facts.length<1||b.facts.length>8)throw new Error('INVALID_BRIEF');
  const facts=b.facts.map((f:{statement:string;source_id:string;quote:string})=>{
-  if(!f||!text(f.statement,800)||f.source_id!=='S1'||!text(f.quote,800)||!source.includes(f.quote))throw new Error('INVALID_BRIEF_CITATION');
+  if(!f||!text(f.statement,800)||f.source_id!=='S1'||!text(f.quote,800)||f.quote.trim().length<5||!source.includes(f.quote))throw new Error('INVALID_BRIEF_CITATION');
   return '- '+f.statement+' [S1]\n  原文：“'+f.quote+'”';
  });
  const section=(key:string)=>{const a=b[key];if(!Array.isArray(a)||a.length<1||a.length>8||a.some(v=>!text(v,800)))throw new Error('INVALID_BRIEF');return a.map(v=>'- '+v).join('\n');};
