@@ -6,6 +6,15 @@ import {join,resolve} from 'node:path';
 import {createHash,randomUUID} from 'node:crypto';
 const exec=promisify(execFile),limit=2*1024*1024;
 export const profiles=['pdf_extract_v1','docx_extract_v1','docx_create_v1'];
+export async function claimDocumentJob(api){
+ try{return (await api({action:'document_claim'})).job;}
+ catch(error){
+  // A rolling deployment can still have the previous Worker, which rejects this unknown action.
+  // Never swallow authorization, lease, quota, transport or new-document RPC failures.
+  if(error?.message==='Invalid skill callback')return null;
+  throw error;
+ }
+}
 export async function prepareDocuments(){await exec('docker',['build','-t','company-documents:local','sandbox/documents'],{timeout:240000,maxBuffer:1024*1024});}
 export async function documentContainer(profile,data,out,fixture=false){
  if(!fixture && (!profiles.includes(profile)||!Buffer.isBuffer(data)||!data.length||data.length>limit))throw new Error('document_input_limit');
@@ -45,3 +54,4 @@ export async function runDocumentJob(job,api){
  }catch{await api({action:'document_fail',taskId:job.id,leaseToken:job.lease_token,report:{error:'document_processing_failed_or_unsupported'}}).catch(()=>{});throw new Error('Document processing failed safely');}
  finally{await rm(out,{recursive:true,force:true});}
 }
+
