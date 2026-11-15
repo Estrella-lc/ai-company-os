@@ -1,6 +1,18 @@
 name: Skill research sandbox
 on:
   workflow_dispatch:
+    inputs:
+      document_fixture:
+        description: 'Only run synthetic document adapter tests; no private files or database claims'
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - 'sandbox/documents/**'
+      - 'skills/document-processing/**'
+      - 'ai-company-os-web/scripts/*document*.mjs'
+      - 'ai-company-os-web/scripts/skill-runner.mjs'
+      - '.github/workflows/skill-sandbox.yml'
   schedule:
     - cron: '0 */2 * * *'
 permissions:
@@ -11,6 +23,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   research:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -19,20 +32,50 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             ai-company-os-web/scripts/skill-runner.mjs
+            ai-company-os-web/scripts/document-runner.mjs
             ai-company-os-web/scripts/skill-discovery.mjs
             ai-company-os-web/scripts/subtitle-delivery.mjs
             ai-company-os-web/scripts/technology-discovery.mjs
             ai-company-os-web/scripts/technology-runner.mjs
             sandbox/integration
             sandbox/subtitle
+            sandbox/documents
+            skills/document-processing
           sparse-checkout-cone-mode: false
       - name: Search, inspect and validate one capability
-        run: node ai-company-os-web/scripts/skill-runner.mjs
+        env:
+          DOCUMENT_FIXTURE: ${{ inputs.document_fixture }}
+        run: |
+          if [ "$DOCUMENT_FIXTURE" = "true" ]; then
+            node ai-company-os-web/scripts/skill-runner.mjs --document-fixture
+          else
+            node ai-company-os-web/scripts/skill-runner.mjs
+          fi
       - name: Retain synthetic evidence briefly
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: skill-research-evidence
+          path: ${{ runner.temp }}/ai-company-skill-evidence
+          if-no-files-found: ignore
+          retention-days: 1
+  document-fixture:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Search public skills and validate synthetic PDF and DOCX files
+        run: node ai-company-os-web/scripts/skill-runner.mjs --document-fixture
+      - name: Retain synthetic document evidence briefly
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: document-fixture-evidence
           path: ${{ runner.temp }}/ai-company-skill-evidence
           if-no-files-found: ignore
           retention-days: 1

@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {documentBridge} from '../../supabase/functions/cto-task-worker/document-bridge.ts';
+const id='00000000-0000-4000-8000-000000000001',token='00000000-0000-4000-8000-000000000002',identity={runner:'100/1',runUrl:'https://github.com/Estrella-lc/ai-company-os/actions/runs/100'},calls=[];
+const storage={createSignedUrl:async(path,ttl)=>{calls.push({path,ttl});return {data:{signedUrl:'https://example.invalid/input'}};},createSignedUploadUrl:async path=>{calls.push({path});return {data:{signedUrl:'https://example.invalid/output'}};}};
+const db={storage:{from:bucket=>{assert.equal(bucket,'company-documents');return storage;}}};
+const rpc=async(name,args)=>{calls.push({name,args});return name==='claim_document_job'?[{id,created_by:'owner',lease_token:token,profile:'pdf_extract_v1',output_path:'owner/'+id+'/'+token+'/result'}]:true;};
+const claimed=await (await documentBridge(db,rpc,{action:'document_claim'},identity)).json();
+assert.equal(claimed.job.lease_token,token);assert.equal(claimed.job.profile,'pdf_extract_v1');assert.ok(!('created_by' in claimed.job));
+assert.deepEqual(calls[1],{path:'owner/'+id+'/input',ttl:600});
+let response=await documentBridge(db,rpc,{action:'document_complete',taskId:'invalid',leaseToken:token,report:{}},identity);assert.equal(response.status,400);
+response=await documentBridge(db,rpc,{action:'document_complete',taskId:id,leaseToken:token,report:{passed:true,scope:'pdf_extract_v1',preview:'PRIVATE FILE CONTENT',uploadUrl:'attacker',output_path:'attacker',output_sha256:'a'.repeat(64)}},identity);
+assert.equal(response.status,200);const report=calls.at(-1).args.p_report;assert.equal(report.run_url,identity.runUrl);assert.equal(report.third_party_scripts_executed,false);assert.ok(!('preview' in report));assert.ok(!('uploadUrl' in report));assert.ok(!('output_path' in report));
+console.log('PASS: scoped document grants, malformed callback rejection and private-content callback redaction');
