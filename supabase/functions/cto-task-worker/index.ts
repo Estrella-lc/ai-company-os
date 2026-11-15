@@ -49,7 +49,7 @@ export async function handle(req:Request):Promise<Response>{
  let job:any;const usage:any[]=[];let lost=false;let timer:ReturnType<typeof setInterval>|undefined;let heartbeatBusy=false;
  try{
   await rpc('reap_expired_chat_replies');
-  await advanceBriefWorkflows(db,rpc);
+  try{await advanceBriefWorkflows(db,rpc);}catch{console.warn('BRIEF_ADVANCE_RETRY');}
   const jobs=await rpc('claim_chat_reply');job=jobs?.[0];if(!job)return Response.json({status:'idle'});
   timer=setInterval(async()=>{if(heartbeatBusy)return;heartbeatBusy=true;try{if(!await rpc('heartbeat_chat_reply',{p_task:job.id,p_token:job.lease_token}))lost=true}catch{lost=true}finally{heartbeatBusy=false}},20000);
   const {data:agent,error:ae}=await db.from('agents').select('id,code,title,is_active,system_prompt').eq('id',job.assigned_agent_id).single();
