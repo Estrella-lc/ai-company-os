@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import SkillGapNotice from '@/components/skill-gap-notice';
 import DocumentTasks from '@/components/document-tasks';
+import BriefTasks from '@/components/brief-tasks';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import {useRouter,useSearchParams} from 'next/navigation';
 import KnowledgeReferences,{type KnowledgeReference} from '@/components/knowledge-references';
@@ -27,7 +28,7 @@ function TasksContent(){
  const params=useSearchParams(),router=useRouter();
  const requestedTask=params.get('task') || '',creating=params.get('new')==='1';
  const [query,setQuery]=useState(''),[filter,setFilter]=useState('all'),[page,setPage]=useState(1),[tab,setTab]=useState('delivery');
- function navigate(id=''){setSelected(id);setNote('');setError('');setTab('delivery');router.push(id?'/tasks?task='+id:'/tasks',{scroll:false});}
+ function navigate(id=''){setSelected(id);setNote('');setError('');setTab('delivery');router.push(id?'/tasks?view=text&task='+id:'/tasks?view=text',{scroll:false});}
  const [agents,setAgents]=useState<Agent[]>([]),[orders,setOrders]=useState<Order[]>([]),[jobs,setJobs]=useState<Job[]>([]),[replies,setReplies]=useState<Reply[]>([]);
  const [selected,setSelected]=useState(''),[title,setTitle]=useState(''),[brief,setBrief]=useState(''),[acceptance,setAcceptance]=useState(''),[agentId,setAgentId]=useState(''),[note,setNote]=useState('');
  const [error,setError]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
@@ -82,9 +83,9 @@ function TasksContent(){
  const pages=Math.max(1,Math.ceil(visible.length/10)),safePage=Math.min(page,pages),rows=visible.slice((safePage-1)*10,safePage*10);
  const renderRun=(run:Run,i:number)=>{const reply=replies.find(r=>r.reply_task_id===run.job_id),job=jobs.find(j=>j.id===run.job_id);return <article key={run.job_id} className="space-y-4"><div className="flex flex-wrap justify-between gap-3"><h3 className="font-semibold">第 {i+1} 版成果</h3><span className="text-xs text-slate-500">{job?.execution_state==='succeeded'?'已交付':'执行状态：'+(job?.execution_state||'读取中')}</span></div>{run.feedback&&<p className="rounded-lg bg-amber-500/5 p-4 text-sm text-amber-200 whitespace-pre-wrap">修改意见：{run.feedback}</p>}{reply?<p className="whitespace-pre-wrap break-words text-sm leading-8">{reply.content}</p>:<p role="status" className="text-slate-400 text-sm">{job?.last_error_code==='awaiting_manager'?'员工已提出阻塞咨询，等待直属高管答复。':job?.last_error_code==='consultation_needs_ceo'?'需要CEO补充资料，请查看内部协作。':job?.execution_state==='failed'?'执行失败，可在质检验收中填写意见后重新提交。':job?.execution_state==='cancelled'?'执行已取消。':'后台处理中，离开页面不会丢失任务。'}</p>}<KnowledgeReferences references={job?.knowledge||[]}/>{job?.last_error_code&&<p className="text-xs text-amber-300">执行记录：{job.last_error_code}</p>}</article>;};
  return <main className="space-y-6">
- <header className="workspace-hero"><div><p className="workspace-eyebrow">TASK OPERATIONS</p><h1>{creating?'新建任务':selected?'任务详情':'任务中心'}</h1><p className="workspace-description">{selected?'查看当前成果，再完成独立质检与CEO验收。':'按状态管理交付；复杂目标交给COS拆解，具体工作在这里推进。'}</p></div><div className="flex flex-wrap gap-3">{selected||creating?<button onClick={()=>navigate()} className="task-secondary">← 返回任务列表</button>:<><Link href="/plans" className="task-secondary">COS规划</Link><Link href="/tasks?new=1" className="task-primary">＋ 新建任务</Link></>}</div></header>
+ <header className="workspace-hero"><div><p className="workspace-eyebrow">TASK OPERATIONS</p><h1>{creating?'新建任务':selected?'任务详情':'任务中心'}</h1><p className="workspace-description">{selected?'查看当前成果，再完成独立质检与CEO验收。':'按状态管理交付；复杂目标交给COS拆解，具体工作在这里推进。'}</p></div><div className="flex flex-wrap gap-3">{selected||creating?<button onClick={()=>navigate()} className="task-secondary">← 返回任务列表</button>:<><Link href="/plans" className="task-secondary">COS规划</Link><Link href="/tasks?view=text&new=1" className="task-primary">＋ 新建任务</Link></>}</div></header>
  {error&&<p role="alert" className="rounded-xl border border-red-700 p-4 text-sm text-red-300">{error}</p>}
- {!selected&&!creating&&<nav className="task-tabs"><Link href="/tasks" className="is-active">文本任务</Link><Link href="/tasks?view=documents">文档任务</Link></nav>}
+ {!selected&&!creating&&<nav className="task-tabs"><Link href="/tasks">业务任务</Link><Link href="/tasks?view=text" className="is-active">文本任务</Link><Link href="/tasks?view=documents">文档任务</Link></nav>}
  {creating?<section className="task-panel max-w-3xl mx-auto"><p className="text-sm text-slate-400 mb-6">先明确目标与完成标准，再指定负责高管。</p>    <form onSubmit={create} onChange={()=>{requestKey.current='';}} className="space-y-5">
      <h2 className="text-lg font-semibold">创建任务</h2>
      <label className="block text-sm">任务名称<input required maxLength={120} value={title} onChange={e=>setTitle(e.target.value)} className={field+' mt-2'} /></label>
@@ -111,5 +112,5 @@ function TasksContent(){
  </section></>}
  </main>;
 }
-function TaskEntry(){const params=useSearchParams();return params.get('view')==='documents'?<DocumentTasks/>:<TasksContent/>;}
+function TaskEntry(){const params=useSearchParams();return params.get('view')==='documents'?<DocumentTasks/>:params.get('view')==='text'||params.has('task')?<TasksContent/>:<BriefTasks/>;}
 export default function TasksPage(){return <Suspense fallback={<p className="p-6">正在读取任务入口...</p>}><TaskEntry/></Suspense>;}

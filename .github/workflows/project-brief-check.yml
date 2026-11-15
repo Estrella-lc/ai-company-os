@@ -1,0 +1,46 @@
+name: Project brief checks
+on:
+  pull_request:
+    paths:
+      - 'ai-company-os-web/src/app/api/briefs/**'
+      - 'ai-company-os-web/src/app/tasks/page.tsx'
+      - 'ai-company-os-web/src/components/brief-tasks.tsx'
+      - 'ai-company-os-web/scripts/test-project-brief.mjs'
+      - 'supabase/functions/cto-task-worker/project-brief.ts'
+      - 'supabase/functions/cto-task-worker/index.ts'
+      - 'supabase/migrations/202611150018_project_brief_workflow.sql'
+      - 'supabase/tests/project_brief_workflow.sql'
+      - '.github/workflows/project-brief-check.yml'
+permissions:
+  contents: read
+concurrency:
+  group: project-brief-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: ai-company-os-web
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: synthetic-ci-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: ai-company-os-web/package-lock.json
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: npm ci
+      - run: node scripts/test-project-brief.mjs
+      - run: npx eslint src/app/api/briefs/route.ts src/components/brief-tasks.tsx
+      - run: deno check --no-lock --node-modules-dir=auto ../supabase/functions/cto-task-worker/index.ts
+      - run: npm run build
+      - run: npx tsc --noEmit

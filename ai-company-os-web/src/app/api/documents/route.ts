@@ -18,7 +18,11 @@ export async function GET(request:Request){
  }
  const {data:jobs,error}=await auth.db.from('document_jobs').select('id,title,manager_agent_id,profile,state,attempt_count,research_job_id,skill_id,last_error,result,review,created_at').eq('created_by',auth.user.id).order('created_at',{ascending:false}).limit(30);
  if(error)return NextResponse.json({error:'文档执行尚未启用或暂时不可用'},{status:503});
- return NextResponse.json({jobs},{headers:{'Cache-Control':'no-store'}});
+ // Child tool jobs belong to the business task detail, avoiding duplicate/misleading acceptance flows.
+ const briefJobs=await auth.db.from('brief_workflows').select('document_job_id').eq('created_by',auth.user.id);
+ if(briefJobs.error&&!['PGRST205','42P01'].includes(briefJobs.error.code))return NextResponse.json({error:'读取业务任务关联失败'},{status:503});
+ const children=new Set((briefJobs.data||[]).map(j=>j.document_job_id));
+ return NextResponse.json({jobs:jobs?.filter(j=>!children.has(j.id))},{headers:{'Cache-Control':'no-store'}});
 }
 export async function POST(request:Request){
  const auth=await authorize();if(!auth)return NextResponse.json({error:'Unauthorized'},{status:401});
@@ -54,4 +58,3 @@ export async function PATCH(request:Request){
  const {error}=await (b.action==='queue'?auth.db.rpc('queue_document_job',{p_task:b.id}):auth.db.rpc('review_document_job',{p_task:b.id,p_action:b.action,p_note:b.note}));
  return error?NextResponse.json({error:'文件未就绪或状态已变化，请刷新重试'},{status:409}):NextResponse.json({success:true});
 }
-
