@@ -12,7 +12,7 @@ export default function BriefTasks(){
  const [flows,setFlows]=useState<Flow[]>([]),[detail,setDetail]=useState<Detail|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[title,setTitle]=useState('资料生成项目简报'),[goal,setGoal]=useState(''),[file,setFile]=useState<File|null>(null),[consent,setConsent]=useState(false),[note,setNote]=useState('');
  const key=useRef('');
  const load=useCallback(async()=>{try{const b=await response(await fetch('/api/briefs'+(id?'?id='+id:''),{cache:'no-store'}));if(id)setDetail(b);else setFlows(b.flows);setError('');}catch(e){setError((e as Error).message);}},[id]);
- useEffect(()=>{setDetail(null);void load();const t=setInterval(()=>void load(),10000);return()=>clearInterval(t);},[load]);
+ useEffect(()=>{const initial=setTimeout(()=>{setDetail(null);void load();},0),t=setInterval(()=>void load(),10000);return()=>{clearTimeout(initial);clearInterval(t);};},[load]);
  async function upload(flowId:string,documentId:string){
   if(!file)throw new Error('请选择原来的PDF或DOCX');
   const r=await fetch('/api/documents?upload='+documentId,{method:'PUT',body:file});await response(r);
@@ -25,7 +25,7 @@ export default function BriefTasks(){
   router.push('/tasks?view=business&brief='+b.id);await upload(b.id,b.documentId);await load();
  }catch(e){setError((e as Error).message);}finally{setBusy(false);}}
  async function act(action:string){if(!detail)return;setBusy(true);try{await response(await fetch('/api/briefs',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:detail.flow.id,action,jobId:detail.job?.id,note})}));setNote('');await load();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
- const d=detail,accepted=d?.order?.result.review_state==='accepted';
+ const d=detail?.flow.id===id?detail:null,accepted=d?.order?.result.review_state==='accepted';
  const steps=[!!d,d?.flow.plan!==null&&!!d?.flow.plan,d?.document.state==='succeeded',d?.job?.execution_state==='succeeded',d?.quality?.report?.verdict==='pass',accepted];
  return <main className="space-y-6"><header className="workspace-hero"><div><p className="workspace-eyebrow">COMPANY TASKS</p><h1>{creating?'让公司完成一个目标':id?'项目简报任务':'任务中心'}</h1><p className="workspace-description">上传资料并说明目标。COS组织分工，员工调用工具，独立质检后交给你验收。</p></div><Link className="task-primary" href={id||creating?'/tasks':'/tasks?new=1'}>{id||creating?'← 返回任务中心':'＋ 新建业务任务'}</Link></header>
  {!id&&!creating&&<nav className="task-tabs"><Link className="is-active" href="/tasks">业务任务</Link><Link href="/tasks?view=text">文本任务</Link><Link href="/tasks?view=documents">文档工具任务</Link></nav>}
