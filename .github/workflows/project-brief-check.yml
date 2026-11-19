@@ -15,6 +15,10 @@ on:
       - 'ai-company-os-web/src/components/business-tasks.tsx'
       - 'ai-company-os-web/scripts/test-business*.mjs'
       - 'supabase/functions/cto-task-worker/business-*.ts'
+      - 'supabase/functions/cto-task-worker/text-quality.ts'
+      - 'ai-company-os-web/scripts/test-text-quality.mjs'
+      - 'supabase/migrations/202611200023_business_quality_evidence_repair.sql'
+      - 'supabase/tests/business_quality_evidence_repair.sql'
       - 'supabase/migrations/202611190020_business_orchestration.sql'
       - 'supabase/tests/business_orchestration.sql'
 permissions:
