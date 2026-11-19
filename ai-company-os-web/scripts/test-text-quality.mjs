@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {parseQualityReport,qualityContext,uncertainQuality,qualityFailureReason,qualityResponseFormat,shortTextFacts,enforceShortText} from '../../supabase/functions/cto-task-worker/text-quality.ts';
+import {parseQualityReport,qualityEvidence,qualityContext,uncertainQuality,qualityFailureReason,qualityResponseFormat,shortTextFacts,enforceShortText} from '../../supabase/functions/cto-task-worker/text-quality.ts';
 const body='多高管会话支持业务决策。任务验收确认交付。';
 const pass={verdict:'pass',summary:'文本满足要求，等待CEO验收',checks:['task_goal','task_acceptance','truthfulness'].map(id=>({id,status:'pass',evidence:'任务验收确认交付。',reason:'原文证据存在，检查本项要求'}))};
 assert.equal(parseQualityReport(JSON.stringify(pass),body).verdict,'pass');
@@ -39,3 +39,12 @@ assert.equal(enforceShortText(uncertainQuality('事实未知'),'合成测试产�
 assert.equal(shortTextFacts('较长但没有明确短句标准的业务流程', '请提供完整流程').applies,false);
 for(const args of [[job,review,{...employee,role:'text_executor'},order],[job,review,employee,{...order,input:{employee_id:'qa'}}],[job,{...review,job_id:'other'},employee,order],[{...job,created_by:'other'},review,employee,order]])assert.throws(()=>qualityContext(...args));
 console.log('PASS: independent identity, owner/job binding, complete criteria, exact evidence, conservative verdicts and oversized delivery guard');
+
+const literal='  - 单文件最大 **2MB**，PDF 最多 **30页**。\n不支持扫描件 OCR。';
+const options=qualityResponseFormat(literal).schema.properties.checks.items.properties.evidence.enum;
+assert(options.includes('  - 单文件最大 **2MB**，PDF 最多 **30页**。'));
+assert(options.every(q=>literal.includes(q)));
+assert(!options.includes('单文件最大2MB'));
+assert(qualityEvidence('字'.repeat(16001)).every(q=>q.length<=240));
+assert.throws(()=>parseQualityReport(JSON.stringify({...pass,checks:pass.checks.map(c=>({...c,evidence:'单文件最大2MB'}))}),literal));
+assert.deepEqual(JSON.parse(qualityContext(job,review,employee,order).input).evidence_options,qualityEvidence(body));
