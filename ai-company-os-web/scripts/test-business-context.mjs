@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {businessPlanContext,parseBusinessPlan} from '../../supabase/functions/cto-task-worker/business-context.ts';
+const flow={id:'f',created_by:'owner',plan_job_id:'j',state:'planning',title:'上线方案',goal:'分析后并行再汇总',source_snapshot:{source_id:'S1',text:'测试资料'}};
+const job={id:'j',created_by:'owner',input:{business_plan_id:'f'}};
+assert.match(businessPlanContext(job,flow,'COS',[{code:'COO',title:'运营'}]).system,/禁止代写/);
+for(const [j,f,c] of [[{...job,id:'old'},flow,'COS'],[job,{...flow,created_by:'other'},'COS'],[job,flow,'CTO']])assert.throws(()=>businessPlanContext(j,f,c,[]));
+const s=(id,deps=[])=>({id,manager_code:'COO',assignment:'提交方案',depends_on:deps,capabilities:['text'],acceptance:['有依据']});
+assert.equal(parseBusinessPlan(JSON.stringify({summary:'分工',steps:[s('analysis'),s('strategy',['analysis']),s('delivery',['analysis','strategy'])]}),['COO']).steps.length,3);
+assert.throws(()=>parseBusinessPlan(JSON.stringify({summary:'缺少汇总前置',steps:[s('a'),s('b'),s('delivery',['b'])]}),['COO']),/MISSING_INTEGRATION_DEPENDENCY/);
+assert.throws(()=>parseBusinessPlan(JSON.stringify({summary:'逆序',steps:[s('b',['a']),s('a')]}),['COO']),/NON_TOPOLOGICAL_PLAN/);
+console.log('PASS: owner/job/COS binding, topological planning and complete integration dependencies');
