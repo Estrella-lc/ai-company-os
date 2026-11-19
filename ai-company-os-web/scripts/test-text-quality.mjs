@@ -42,9 +42,16 @@ console.log('PASS: independent identity, owner/job binding, complete criteria, e
 
 const literal='  - 单文件最大 **2MB**，PDF 最多 **30页**。\n不支持扫描件 OCR。';
 const options=qualityResponseFormat(literal).schema.properties.checks.items.properties.evidence.enum;
-assert(options.includes('  - 单文件最大 **2MB**，PDF 最多 **30页**。'));
-assert(options.every(q=>literal.includes(q)));
+assert(options.includes('quote_0'));
+const referred={...pass,checks:pass.checks.map(c=>({...c,evidence:'quote_0'}))};
+assert.equal(parseQualityReport(JSON.stringify(referred),literal).checks[0].evidence,'  - 单文件最大 **2MB**，PDF 最多 **30页**。');
+assert.throws(()=>parseQualityReport(JSON.stringify({...referred,checks:referred.checks.map(c=>({...c,evidence:'quote_999999'}))}),literal));
+assert(options.every(q=>q==='no_quote'||/^quote_\d+$/.test(q)));
+assert(options.every(q=>q.length<20));
 assert(!options.includes('单文件最大2MB'));
 assert(qualityEvidence('字'.repeat(16001)).every(q=>q.length<=240));
 assert.throws(()=>parseQualityReport(JSON.stringify({...pass,checks:pass.checks.map(c=>({...c,evidence:'单文件最大2MB'}))}),literal));
-assert.deepEqual(JSON.parse(qualityContext(job,review,employee,order).input).evidence_options,qualityEvidence(body));
+assert.deepEqual(JSON.parse(qualityContext(job,review,employee,order).input).evidence_options,qualityEvidence(body).map((text,i)=>({id:"quote_"+i,text})));
+
+assert.throws(()=>parseQualityReport(JSON.stringify({...pass,checks:pass.checks.map(c=>({...c,evidence:'no_quote'}))}),literal));
+assert.equal(parseQualityReport(JSON.stringify({...uncertainQuality('未知事实'),checks:uncertainQuality('未知事实').checks.map(c=>({...c,evidence:'no_quote'}))}),literal).verdict,'needs_human');
