@@ -9,7 +9,9 @@ BEGIN
  UPDATE public.tasks SET execution_state='running',attempt_count=3,lease_token=token,lease_expires_at=now()+interval '90 seconds' WHERE id=j;
  PERFORM public.fail_chat_reply(j,token,'provider_unavailable',false,'[]');
  UPDATE public.business_workflows SET state='blocked' WHERE id=f;
- IF NOT public.retry_business_workflow(f) OR (SELECT execution_state FROM public.tasks WHERE id=j)<>'queued' OR (SELECT state FROM public.business_workflows WHERE id=f)<>'planning' OR public.retry_business_workflow(f) THEN RAISE EXCEPTION 'Retry/idempotency failed';END IF;
+ IF NOT public.retry_business_workflow(f) THEN RAISE EXCEPTION 'Provider retry refused';END IF;
+ IF (SELECT execution_state FROM public.tasks WHERE id=j)<>'queued' OR (SELECT state FROM public.business_workflows WHERE id=f)<>'planning' THEN RAISE EXCEPTION 'Retry state not restored';END IF;
+ IF public.retry_business_workflow(f) THEN RAISE EXCEPTION 'Duplicate retry accepted';END IF;
  UPDATE public.tasks SET execution_state='running',attempt_count=4,lease_token=token,lease_expires_at=now()+interval '90 seconds' WHERE id=j;
  PERFORM public.fail_chat_reply(j,token,'execution_failed',false,'[]');
  IF public.retry_business_workflow(f) THEN RAISE EXCEPTION 'Nonprovider failure retried';END IF;
