@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {validateBusinessPlan,readyBusinessSteps,businessReadyForCeo,routeCapability} from '../../supabase/functions/cto-task-worker/business-plan.ts';
+const step=(id,deps=[])=>({id,manager_code:'COO',assignment:'根据真实资料提交成果',depends_on:deps,capabilities:['documents'],acceptance:['保留来源证据']});
+const p=validateBusinessPlan({summary:'先分析再并行策划与内容交付',steps:[step('analysis'),step('strategy',['analysis']),step('content',['analysis'])]},['COO']);
+const proof=(id,job='v1')=>({id,state:'succeeded',source_job_id:job,quality_source_job_id:job,quality_verdict:'pass',producer_id:'writer',inspector_id:'inspector'});
+assert.deepEqual(readyBusinessSteps(p,[]),['analysis']);
+assert.deepEqual(readyBusinessSteps(p,[proof('analysis')]),['strategy','content']);
+for(const change of [{inspector_id:'writer'},{quality_source_job_id:'old'},{quality_verdict:'needs_human'},{state:'running'}])assert.deepEqual(readyBusinessSteps(p,[{...proof('analysis'),...change}]),[]);
+for(const steps of [[step('a',['a'])],[step('a',['b']),step('b',['a'])],[step('a',['missing'])],[step('a'),step('a')],[{...step('a'),manager_code:'COS'}]])assert.throws(()=>validateBusinessPlan({summary:'测试',steps},['COO','COS']));
+const evidence=p.steps.map(s=>proof(s.id));
+assert.equal(businessReadyForCeo(p,evidence,null),false);
+assert.equal(businessReadyForCeo(p,evidence,{verdict:'pass',versions:{analysis:'v1',strategy:'v1',content:'v1'}}),true);
+assert.equal(businessReadyForCeo(p,[proof('analysis','v2'),...evidence.slice(1)],{verdict:'pass',versions:{analysis:'v1',strategy:'v1',content:'v1'}}),false);
+assert.equal(routeCapability('documents','pdf_extract_v1',[{capability:'documents',status:'verified_limited',adapter:'fixed',profiles:['pdf_extract_v1']}],['fixed']).action,'reuse');
+assert.equal(routeCapability('documents','ocr',[{capability:'documents',status:'verified_limited',adapter:'fixed',profiles:['pdf_extract_v1']}],['fixed']).action,'research');
+assert.equal(routeCapability('documents','pdf_extract_v1',[{capability:'documents',status:'verified_limited',adapter:'downloaded_script',profiles:['pdf_extract_v1']}],['fixed']).action,'research');
+console.log('PASS: COS DAG validation, parallel dependencies, scoped skill reuse, source-version quality gates and CEO integration gate');
