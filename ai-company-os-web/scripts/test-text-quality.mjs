@@ -46,9 +46,12 @@ assert(options.includes('quote_0'));
 const referred={...pass,checks:pass.checks.map(c=>({...c,evidence:'quote_0'}))};
 assert.equal(parseQualityReport(JSON.stringify(referred),literal).checks[0].evidence,'  - 单文件最大 **2MB**，PDF 最多 **30页**。');
 assert.throws(()=>parseQualityReport(JSON.stringify({...referred,checks:referred.checks.map(c=>({...c,evidence:'quote_999999'}))}),literal));
-assert(options.every(q=>q===''||/^quote_\d+$/.test(q)));
+assert(options.every(q=>q==='no_quote'||/^quote_\d+$/.test(q)));
 assert(options.every(q=>q.length<20));
 assert(!options.includes('单文件最大2MB'));
 assert(qualityEvidence('字'.repeat(16001)).every(q=>q.length<=240));
 assert.throws(()=>parseQualityReport(JSON.stringify({...pass,checks:pass.checks.map(c=>({...c,evidence:'单文件最大2MB'}))}),literal));
 assert.deepEqual(JSON.parse(qualityContext(job,review,employee,order).input).evidence_options,qualityEvidence(body).map((text,i)=>({id:"quote_"+i,text})));
+
+assert.throws(()=>parseQualityReport(JSON.stringify({...pass,checks:pass.checks.map(c=>({...c,evidence:'no_quote'}))}),literal));
+assert.equal(parseQualityReport(JSON.stringify({...uncertainQuality('未知事实'),checks:uncertainQuality('未知事实').checks.map(c=>({...c,evidence:'no_quote'}))}),literal).verdict,'needs_human');
