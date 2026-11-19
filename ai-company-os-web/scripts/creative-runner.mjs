@@ -25,7 +25,7 @@ async function generate(spec,reuse){
  if(reuse)await writeFile(join(work,'reuse.json'),JSON.stringify(reuse),{mode:0o444});
  await exec('docker',['build','-t','company-creative:local',adapter],{timeout:170000,maxBuffer:1024*1024});
  // Preparation sees public model hosts, but receives no identity, provider or database secrets.
- await exec('docker',['run','--rm','--cap-drop=ALL','--security-opt=no-new-privileges','--memory=3g','--cpus=2','--volume',adapter+':/adapter:ro','--volume',models+':/models:rw','--volume',work+':/request:ro','company-creative:local','prepare','/models',...(reuse?['/request/reuse.json']:[])],{timeout:160000,maxBuffer:1024*1024});
+ await exec('docker',['run','--rm','--user',process.getuid()+':'+process.getgid(),'--env','HF_HOME=/tmp/hf','--cap-drop=ALL','--security-opt=no-new-privileges','--memory=3g','--cpus=2','--volume',adapter+':/adapter:ro','--volume',models+':/models:rw','--volume',work+':/request:ro','company-creative:local','prepare','/models',...(reuse?['/request/reuse.json']:[])],{timeout:160000,maxBuffer:1024*1024});
  const container='company-creative-'+randomUUID();
  try{await exec('docker',['run','--name',container,'--rm','--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--pids-limit=128','--memory=4g','--cpus=2','--user=65534:65534','--tmpfs','/tmp:rw,noexec,nosuid,size=256m','--volume',adapter+':/adapter:ro','--volume',models+':/models:ro','--volume',work+':/request:ro','--volume',out+':/out:rw','company-creative:local','generate','/models','/request/request.json','/out'],{timeout:140000,maxBuffer:1024*1024});}
  finally{await exec('docker',['rm','-f',container],{timeout:5000,maxBuffer:2048}).catch(()=>{});}
