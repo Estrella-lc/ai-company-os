@@ -1,6 +1,7 @@
 import {skillPolicy,skillSearch} from './skill-policy.ts';
 import {documentBridge} from './document-bridge.ts';
 import {businessPlanContext,parseBusinessPlan} from './business-context.ts';
+import {generateBusinessText} from './business-provider.ts';
 import {advanceBriefWorkflows,briefPlanContext,briefExecutionContext,parseBriefPlan,renderProjectBrief} from './project-brief.ts';
 import { technologyBridge } from './technology-bridge.ts';
 import { textExecutionContext, employeeDelivery } from './text-execution.ts';
@@ -140,7 +141,8 @@ export async function handle(req:Request):Promise<Response>{
   for(let i=0;i<models.length;i++){
    if(lost)throw new Error('LEASE_LOST');const model=models[i],start=Date.now();
    try{
-    const out=await ai.interactions.create({model,input,...(inspection?{response_format:qualityResponseFormat()}:{}),system_instruction:(businessPlan?.system || briefPlan?.system || dialogue?.system || consultation?.system || inspection?.system || employeeContext?.system || 'You are '+agent.code+' ('+agent.title+') of AI Company OS. Answer the CEO in Chinese within your role. You have no tools or repository access; never claim actions were executed.\n'+(agent.system_prompt||''))+(employeeContext&&job.input?.skill_search_enabled===true?skillPolicy:''),generation_config:{thinking_level:'low',max_output_tokens:businessPlan?1800:dialogue?(dialogue.limit===1400?800:1600):2400}},{timeout_ms:businessModelBudget?45000:i===0&&models.length>1?15000:30000,maxRetries:0});
+    const instruction=(businessPlan?.system || briefPlan?.system || dialogue?.system || consultation?.system || inspection?.system || employeeContext?.system || 'You are '+agent.code+' ('+agent.title+') of AI Company OS. Answer the CEO in Chinese within your role. You have no tools or repository access; never claim actions were executed.\n'+(agent.system_prompt||''))+(employeeContext&&job.input?.skill_search_enabled===true?skillPolicy:'');
+    const out=businessModelBudget?await generateBusinessText(ai,{model,input,system:instruction,maxOutputTokens:businessPlan?1800:2400,...(inspection?{schema:qualityResponseFormat().schema}:{})}):await ai.interactions.create({model,input,...(inspection?{response_format:qualityResponseFormat()}:{}),system_instruction:instruction,generation_config:{thinking_level:'low',max_output_tokens:businessPlan?1800:dialogue?(dialogue.limit===1400?800:1600):2400}},{timeout_ms:businessModelBudget?45000:i===0&&models.length>1?15000:30000,maxRetries:0});
     usage.push({model,status:out.status,duration_ms:Date.now()-start,input_tokens:out.usage?.total_input_tokens??null,output_tokens:out.usage?.total_output_tokens??null,request_id:out.id});
     if(out.status!=='completed'||!out.output_text?.trim())throw new Error('EMPTY_RESPONSE');answer=out.output_text.trim();break;
    }catch(e){if(!usage.some(x=>x.model===model))usage.push({model,status:'failed',duration_ms:Date.now()-start,input_tokens:null,output_tokens:null,error_kind:/timeout|timed out|deadline/i.test(String((e as Error)?.message??e))?'timeout':/429|quota|rate.limit/i.test(String((e as Error)?.message??e))?'rate_limit':'provider_error'});if(i===models.length-1||!transient(e))throw e;}

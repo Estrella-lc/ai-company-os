@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {generateBusinessText} from '../../supabase/functions/cto-task-worker/business-provider.ts';
+let request;
+const client={models:{async generateContent(r){request=r;return {text:'完整成果',candidates:[{finishReason:'STOP'}],responseId:'test',usageMetadata:{promptTokenCount:12,candidatesTokenCount:7}};}}};
+const p={model:'existing-configured-model',input:'任务资料',system:'固定员工职责',maxOutputTokens:1800};
+const out=await generateBusinessText(client,p);
+assert.equal(out.output_text,'完整成果');assert.equal(out.usage.total_input_tokens,12);assert.equal(request.contents,p.input);assert.equal(request.config.systemInstruction,p.system);
+assert.equal(request.config.httpOptions.timeout,45000);assert.equal(request.config.httpOptions.retryOptions.attempts,1);assert.ok(request.config.abortSignal instanceof AbortSignal);assert.equal(request.config.tools,undefined);
+const schema={type:'object',properties:{verdict:{type:'string'}}};await generateBusinessText(client,{...p,schema});assert.equal(request.config.responseMimeType,'application/json');assert.deepEqual(request.config.responseJsonSchema,schema);
+for(const response of [{text:'被截断',candidates:[{finishReason:'MAX_TOKENS'}]},{text:'',candidates:[{finishReason:'STOP'}]},{text:'不安全',candidates:[{finishReason:'SAFETY'}]}])await assert.rejects(()=>generateBusinessText({models:{generateContent:async()=>response}},p),/MODEL_OUTPUT_INCOMPLETE/);
+await assert.rejects(()=>generateBusinessText({models:{generateContent:async()=>{throw new Error('503');}}},p),/503/);
+console.log('PASS: standard business text transport, fixed identity/input, bounded timeout/no hidden retries, JSON quality schema and incomplete-output refusal');
