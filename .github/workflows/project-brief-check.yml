@@ -48,6 +48,7 @@ jobs:
       - run: node scripts/test-project-brief.mjs
       - run: node scripts/test-business-plan.mjs
       - run: node scripts/test-business-context.mjs
+      - run: node scripts/test-business-provider.mjs
       - run: npx eslint src/app/api/briefs/route.ts src/components/brief-tasks.tsx src/app/api/business/route.ts src/components/business-tasks.tsx
       - run: deno check --no-lock --node-modules-dir=auto ../supabase/functions/cto-task-worker/index.ts
       - run: npm run build
