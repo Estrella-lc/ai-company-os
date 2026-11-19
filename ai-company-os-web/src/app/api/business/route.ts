@@ -19,7 +19,7 @@ export async function POST(request:Request){
 }
 export async function PATCH(request:Request){
  const a=await authorize();if(!a)return fail('Unauthorized',401);let b;try{b=await request.json();}catch{return fail('请求格式错误',400);}
- if(b&&uuid.test(b.id||'')&&b.action==='retry'){const r=await a.db.rpc('retry_business_workflow',{p_flow:b.id});return r.error||r.data!==true?fail('没有可恢复的模型故障，或已达到最多5次尝试上限'):NextResponse.json({success:true});}
+ if(b&&uuid.test(b.id||'')&&b.action==='retry'){const r=await a.db.rpc('retry_business_workflow',{p_flow:b.id});return r.error||r.data!==true?fail('没有可恢复的模型故障，或已达到最多6次尝试上限'):NextResponse.json({success:true});}
  if(!b||!uuid.test(b.id||'')||!uuid.test(b.version||'')||!['accept','revise'].includes(b.action)||typeof b.note!=='string'||b.note.length>2000||(b.action==='revise'&&!b.note.trim()))return fail('请提供有效版本和意见',400);
  const r=await a.db.rpc('review_business_workflow',{p_flow:b.id,p_action:b.action,p_note:b.note,p_version:b.version});return r.error?fail('当前版本或整体质检未满足要求，请刷新核对'):NextResponse.json({success:true});
 }
