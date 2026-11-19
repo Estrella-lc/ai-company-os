@@ -11,6 +11,12 @@ on:
       - 'supabase/migrations/202611150018_project_brief_workflow.sql'
       - 'supabase/tests/project_brief_workflow.sql'
       - '.github/workflows/project-brief-check.yml'
+      - 'ai-company-os-web/src/app/api/business/**'
+      - 'ai-company-os-web/src/components/business-tasks.tsx'
+      - 'ai-company-os-web/scripts/test-business*.mjs'
+      - 'supabase/functions/cto-task-worker/business-*.ts'
+      - 'supabase/migrations/202611190020_business_orchestration.sql'
+      - 'supabase/tests/business_orchestration.sql'
 permissions:
   contents: read
 concurrency:
@@ -40,7 +46,9 @@ jobs:
           deno-version: v2.x
       - run: npm ci
       - run: node scripts/test-project-brief.mjs
-      - run: npx eslint src/app/api/briefs/route.ts src/components/brief-tasks.tsx
+      - run: node scripts/test-business-plan.mjs
+      - run: node scripts/test-business-context.mjs
+      - run: npx eslint src/app/api/briefs/route.ts src/components/brief-tasks.tsx src/app/api/business/route.ts src/components/business-tasks.tsx
       - run: deno check --no-lock --node-modules-dir=auto ../supabase/functions/cto-task-worker/index.ts
       - run: npm run build
       - run: npx tsc --noEmit

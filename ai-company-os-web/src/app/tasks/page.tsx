@@ -3,6 +3,7 @@ import Link from 'next/link';
 import SkillGapNotice from '@/components/skill-gap-notice';
 import DocumentTasks from '@/components/document-tasks';
 import BriefTasks from '@/components/brief-tasks';
+import BusinessTasks from '@/components/business-tasks';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import {useRouter,useSearchParams} from 'next/navigation';
 import KnowledgeReferences,{type KnowledgeReference} from '@/components/knowledge-references';
@@ -112,5 +113,5 @@ function TasksContent(){
  </section></>}
  </main>;
 }
-function TaskEntry(){const params=useSearchParams();return params.get('view')==='documents'?<DocumentTasks/>:params.get('view')==='text'||params.has('task')?<TasksContent/>:<BriefTasks/>;}
+function TaskEntry(){const params=useSearchParams();return params.get('view')==='workflow'?<BusinessTasks/>:params.get('view')==='documents'?<DocumentTasks/>:params.get('view')==='text'||params.has('task')?<TasksContent/>:<BriefTasks/>;}
 export default function TasksPage(){return <Suspense fallback={<p className="p-6">正在读取任务入口...</p>}><TaskEntry/></Suspense>;}
