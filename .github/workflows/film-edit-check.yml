@@ -4,6 +4,10 @@ on:
     paths:
       - 'sandbox/film/**'
       - '.github/workflows/film-edit-check.yml'
+      - 'ai-company-os-web/scripts/*film*.mjs'
+      - 'supabase/functions/cto-task-worker/film-bridge.ts'
+      - 'supabase/migrations/*film_render.sql'
+      - 'supabase/tests/film_render.sql'
 permissions:
   contents: read
 jobs:
@@ -15,6 +19,10 @@ jobs:
         with:
           persist-credentials: false
       - run: python3 -m unittest discover -s sandbox/film -p test_render_plan.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+      - run: node --test ai-company-os-web/scripts/test-film-runner.mjs ai-company-os-web/scripts/test-film-bridge.mjs
       - run: python3 sandbox/film/make_fixture.py "$RUNNER_TEMP/film-input"
       - run: docker build -t company-film-fixture sandbox/film
       - name: Render synthetic fixture in isolation
@@ -28,3 +36,4 @@ jobs:
           name: synthetic-film-technical-report
           path: ${{ runner.temp }}/film-output/verification.json
           retention-days: 1
+

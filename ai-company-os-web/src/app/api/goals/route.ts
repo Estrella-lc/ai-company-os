@@ -8,12 +8,18 @@ export async function GET(request:Request){
  if(!id){const r=await a.db.from('company_goals').select('id,title,state,created_at,last_error').eq('created_by',a.user.id).order('created_at',{ascending:false}).limit(30);return r.error?fail('业务目标暂时无法读取',503):NextResponse.json({goals:r.data},{headers:{'Cache-Control':'no-store'}});}
  if(!uuid.test(id))return fail('无效目标',400);
  const g=await a.db.from('company_goals').select('*').eq('id',id).eq('created_by',a.user.id).single();if(g.error)return fail('目标不存在',404);
- const film=await a.db.from('film_workflows').select('id,state,storyboard,capability_review,last_error,employee_jobs').eq('goal_id',id).eq('created_by',a.user.id).maybeSingle();
- const jobs=[...Object.values(g.data.proposal_jobs||{}),...Object.values(g.data.review_jobs||{}),...Object.values(film.data?.employee_jobs||{}),g.data.research_job].filter((x):x is string=>typeof x==='string'&&uuid.test(x));
+ const film=await a.db.from('film_workflows').select('id,state,storyboard,capability_review,last_error,employee_jobs,render_job').eq('goal_id',id).eq('created_by',a.user.id).maybeSingle();
+ const jobs=[...Object.values(g.data.proposal_jobs||{}),...Object.values(g.data.review_jobs||{}),...Object.values(film.data?.employee_jobs||{}),film.data?.render_job,g.data.research_job].filter((x):x is string=>typeof x==='string'&&uuid.test(x));
  const [tasks,messages,usage]=await Promise.all([a.db.from('tasks').select('id,execution_state,attempt_count,last_error_code,input,result,started_at,finished_at').eq('created_by',a.user.id).in('id',jobs),a.db.from('messages').select('reply_task_id,content').in('reply_task_id',jobs),a.db.from('model_usage').select('task_id,model_name,input_tokens,output_tokens,duration_ms,call_status,error_kind,http_status').in('task_id',jobs)]);
  if(tasks.error||messages.error)return fail('目标执行记录暂时无法读取',503);
  const research=tasks.data.find(t=>t.id===g.data.research_job),asset=url.searchParams.get('asset');
  if(asset){
+  if(asset==='film'){
+   const render=tasks.data.find(t=>t.id===film.data?.render_job),path=render?.result?.output_path;
+   if(render?.execution_state!=='succeeded'||typeof path!=='string'||!path.startsWith(a.user.id+'/'+render.id+'/'))return fail('成片尚未就绪',404);
+   const file=await a.db.storage.from('company-films').download(path);if(file.error)return fail('成片读取失败',503);
+   return new NextResponse(await file.data.arrayBuffer(),{headers:{'Content-Type':'video/mp4','Content-Disposition':(url.searchParams.has('download')?'attachment':'inline')+'; filename="film-preview.mp4"','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
+  }
   if(!['image','voice'].includes(asset)||research?.execution_state!=='succeeded')return fail('文件尚未就绪',404);
   const path=research.result?.assets?.[asset+'_path'];if(typeof path!=='string'||!path.startsWith(a.user.id+'/'+research.id+'/'))return fail('文件无效',404);
   const file=await a.db.storage.from('company-creative').download(path);if(file.error)return fail('文件读取失败',503);
@@ -33,6 +39,7 @@ export async function PATCH(request:Request){
  if(!b||!uuid.test(b.id||''))return fail('无效目标',400);
  let r;
  if(b.action==='select'&&uuid.test(b.proposalJob||''))r=await a.db.rpc('select_company_goal_proposal',{p_goal:b.id,p_job:b.proposalJob});
+ else if(b.action==='render_film'){const f=await a.db.rpc('request_film_render',{p_goal:b.id});return f.error?fail('成片合成暂不可用'):NextResponse.json({success:true,id:f.data});}
  else if(b.action==='retry_film')r=await a.db.rpc('retry_film_planning',{p_goal:b.id});
  else if(b.action==='plan_film'){const f=await a.db.rpc('request_film_planning',{p_goal:b.id});return f.error?fail('分镜规划暂不可用'):NextResponse.json({success:true,id:f.data});}
  else if(b.action==='revise_voice')r=await a.db.rpc('revise_company_goal_voice',{p_goal:b.id});
@@ -41,3 +48,4 @@ export async function PATCH(request:Request){
  else return fail('无效操作',400);
  return r.error||r.data!==true?fail('状态已变化或未满足验证条件，请刷新核对'):NextResponse.json({success:true});
 }
+
