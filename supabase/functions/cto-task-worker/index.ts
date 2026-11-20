@@ -1,3 +1,4 @@
+import {filmBridge} from './film-bridge.ts';
 import {filmPlanningContext,parseFilmPlanning,filmPlanningSchema,filmCandidateError} from './film-planning.ts';
 import {creativeProposalContext,proposalSchema,parseCreativeProposal,parseCreativeReview} from './creative-goal.ts';
 import {creativeBridge,creativeReviewContext,generateCreativeReview} from './creative-bridge.ts';
@@ -38,6 +39,7 @@ export async function handle(req:Request):Promise<Response>{
   try{
    const raw=await req.text();if(raw.length>200000)return Response.json({error:'Report too large'},{status:413});
    const body=JSON.parse(raw);
+   if(typeof body.action==='string' && body.action.startsWith('film_'))return await filmBridge(db,rpc,body,skillIdentity);
    if(typeof body.action==='string' && body.action.startsWith('creative_'))return await creativeBridge(db,rpc,body,skillIdentity);
    if(typeof body.action==='string' && body.action.startsWith('document_'))return await documentBridge(db,rpc,body,skillIdentity);
    if(typeof body.action==='string' && body.action.startsWith('technology_'))return await technologyBridge(db,rpc,body,skillIdentity,{key:gemini,models:[...new Set([env('GEMINI_MODEL')||'gemini-3.8-flash',env('GEMINI_FALLBACK_MODEL')||'gemini-3.5-flash-lite'])]});
@@ -193,3 +195,4 @@ export async function handle(req:Request):Promise<Response>{
  }finally{if(timer!==undefined)clearInterval(timer)}
 }
 Deno.serve(handle);
+
