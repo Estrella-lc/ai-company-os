@@ -1,5 +1,9 @@
 // Only reachable after the existing trusted-main GitHub OIDC verification.
 export async function filmBridge(db:any,rpc:any,body:any,identity:{runner:string;runUrl:string}){
+ if(body.action==='film_claim'){
+  const j=(await rpc('claim_authorized_film_once',{p_runner:identity.runner}))?.[0];
+  return Response.json({job:j?{id:j.id,lease_token:j.lease_token,input:{mode:'film_render'}}:null});
+ }
  if(!['film_grants','film_complete','film_fail'].includes(body.action)||!/^[a-f0-9-]{36}$/i.test(body.taskId||'')||!/^[a-f0-9-]{36}$/i.test(body.leaseToken||''))return Response.json({error:'Invalid film lease'},{status:400});
  const binding={p_task:body.taskId,p_token:body.leaseToken,p_runner:identity.runner};
  const f=(await rpc('film_task_context',binding))?.[0];
