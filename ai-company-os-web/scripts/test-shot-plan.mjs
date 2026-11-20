@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {validateShotPlan,nextFilmStep} from './shot-plan.mjs';
+const assets=[{id:'actor',kind:'image',verdict:'pass',sha256:'a'.repeat(64)},{id:'line',kind:'voice',verdict:'pass',sha256:'b'.repeat(64),duration:4.5,transcript:'合成测试对白'}];
+const plan={shots:[{id:'intro',start:0,duration:10,image:'actor',motion:'slow_push'},{id:'reveal',start:10,duration:5,image:'actor',voice:'line',dialogue:'合成测试对白',motion:'still'}]};
+assert.equal(validateShotPlan(plan,assets).duration,15);
+const change=f=>{const p=structuredClone(plan);f(p);return p;};
+assert.throws(()=>validateShotPlan(change(p=>p.shots[1].start=9),assets),/TIMELINE/);
+assert.throws(()=>validateShotPlan(change(p=>p.shots[1].dialogue='删改对白'),assets),/FIDELITY/);
+assert.throws(()=>validateShotPlan(plan,assets.map(a=>({...a,verdict:'revise'}))),/UNAPPROVED/);
+assert.throws(()=>validateShotPlan(change(p=>p.shots[1].motion='lip_sync'),assets),/UNSUPPORTED/);
+assert.throws(()=>validateShotPlan(plan,assets.map(a=>a.kind==='voice'?{...a,duration:6}:a)),/TRUNCATION/);
+assert.equal(nextFilmStep({ceoAccepted:false,storyboardApproved:true,assetsReady:true,rendered:true,independentPassed:true}),'await_ceo_sample_acceptance');
+assert.equal(nextFilmStep({ceoAccepted:true,storyboardApproved:true,assetsReady:true,rendered:true,independentPassed:false}),'independent_film_inspection');
+console.log('PASS: continuous timeline, immutable dialogue, approved assets, no truncated speech or unsupported motion, separate CEO and film inspection gates');
