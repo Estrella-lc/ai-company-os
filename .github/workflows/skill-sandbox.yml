@@ -37,11 +37,17 @@ jobs:
             ai-company-os-web/scripts/subtitle-delivery.mjs
             ai-company-os-web/scripts/technology-discovery.mjs
             ai-company-os-web/scripts/technology-runner.mjs
+            ai-company-os-web/scripts/creative-runner.mjs
+            sandbox/creative
             sandbox/integration
             sandbox/subtitle
             sandbox/documents
             skills/document-processing
           sparse-checkout-cone-mode: false
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/company-creative-model-cache
+          key: creative-public-models-${{ hashFiles('sandbox/creative/creative.py', 'sandbox/creative/requirements.txt') }}
       - name: Search, inspect and validate one capability
         env:
           DOCUMENT_FIXTURE: ${{ inputs.document_fixture }}

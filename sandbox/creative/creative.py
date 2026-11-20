@@ -61,6 +61,7 @@ def prepare(out,wanted=None):
    target=out/p;target.parent.mkdir(parents=True,exist_ok=True)
    with t.extractfile(m) as source,open(target,'wb') as dest: shutil.copyfileobj(source,dest)
  files=[{'path':str(p.relative_to(model_dir)),'sha256':sha(p),'bytes':p.stat().st_size} for p in model_dir.rglob('*') if p.is_file() and '.cache' not in p.parts]
+ if wanted and {f['path']:f['sha256'] for f in files}!={f['path']:f['sha256'] for f in wanted['image']['files']}: raise ValueError('reuse_image_version_changed')
  result={'image':{'repository':IMAGE_MODEL,'revision':revision,'license':info.get('cardData',{}).get('license','unknown'),'files':files},
   'voice':{'repository':'k2-fsa/sherpa-onnx','asset_id':asset['id'],'asset_url':url,'sha256':digest,'license_file':(out/'vits-melo-tts-zh_en/LICENSE').read_text()[:6000]},
   'engine':{'image':'openvino-genai==2026.4.1.0','voice':'sherpa-onnx==1.12.38'},'data_only':True}

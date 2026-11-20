@@ -1,3 +1,5 @@
+import {creativeProposalContext,proposalSchema,parseCreativeProposal,parseCreativeReview} from './creative-goal.ts';
+import {creativeBridge,creativeReviewContext,generateCreativeReview} from './creative-bridge.ts';
 import {skillPolicy,skillSearch} from './skill-policy.ts';
 import {documentBridge} from './document-bridge.ts';
 import {businessPlanContext,parseBusinessPlan} from './business-context.ts';
@@ -35,13 +37,14 @@ export async function handle(req:Request):Promise<Response>{
   try{
    const raw=await req.text();if(raw.length>200000)return Response.json({error:'Report too large'},{status:413});
    const body=JSON.parse(raw);
+   if(typeof body.action==='string' && body.action.startsWith('creative_'))return await creativeBridge(db,rpc,body,skillIdentity);
    if(typeof body.action==='string' && body.action.startsWith('document_'))return await documentBridge(db,rpc,body,skillIdentity);
    if(typeof body.action==='string' && body.action.startsWith('technology_'))return await technologyBridge(db,rpc,body,skillIdentity,{key:gemini,models:[...new Set([env('GEMINI_MODEL')||'gemini-3.8-flash',env('GEMINI_FALLBACK_MODEL')||'gemini-3.5-flash-lite'])]});
    if(typeof body.action==='string' && body.action.startsWith('media_'))return await mediaBridge(db,rpc,body,skillIdentity);
    if(body.action==='claim'){
     const rows=await rpc('claim_skill_research',{p_runner:skillIdentity.runner}),job=rows?.[0];
     let integration=null;if(job?.input?.mode==='technology_execute'){const r=await db.from('company_integrations').select('package,manifest').eq('id',job.input.integration_id).eq('created_by',job.created_by).eq('status','available').single();if(r.error)return Response.json({error:'Shared connection unavailable'},{status:409});integration=r.data;}
-    return Response.json({job:job?{id:job.id,lease_token:job.lease_token,input:{need:job.description,query:job.input.query,capability:job.input.capability,mode:job.input.mode,profile:job.input.profile,srt:job.input.mode==='technology_execute'?job.input.srt:undefined},integration}:null});
+    return Response.json({job:job?{id:job.id,lease_token:job.lease_token,input:{need:job.description,query:job.input.query,capability:job.input.capability,mode:job.input.mode,profile:job.input.profile,...(job.input.mode==='creative_samples'?{spec:job.input.spec,reuse_manifest:job.input.reuse_manifest}:{}),srt:job.input.mode==='technology_execute'?job.input.srt:undefined},integration}:null});
    }
    if(!['complete','fail'].includes(body.action) || !/^[0-9a-f-]{36}$/i.test(body.taskId || '') || !/^[0-9a-f-]{36}$/i.test(body.leaseToken || '') || !body.report || typeof body.report!=='object')return Response.json({error:'Invalid skill callback'},{status:400});
    const report={...body.report,run_url:skillIdentity.runUrl};
@@ -53,6 +56,7 @@ export async function handle(req:Request):Promise<Response>{
  let job:any;const usage:any[]=[];let lost=false;let timer:ReturnType<typeof setInterval>|undefined;let heartbeatBusy=false;
  try{
   await rpc('reap_expired_chat_replies');
+  try{await rpc('advance_company_goals');}catch{console.warn('GOAL_ADVANCE_RETRY');}
   try{await advanceBriefWorkflows(db,rpc);}catch{console.warn('BRIEF_ADVANCE_RETRY');}
   try{await rpc('repair_business_quality_reports');await rpc('advance_business_workflows');}catch{console.warn('BUSINESS_ADVANCE_RETRY');}
   const jobs=await rpc('claim_chat_reply');job=jobs?.[0];if(!job)return Response.json({status:'idle'});
@@ -62,13 +66,20 @@ export async function handle(req:Request):Promise<Response>{
   const {data:m,error:me}=await db.from('messages').select('id,conversation_id,sender_type,content,created_at').eq('id',job.request_message_id).single();
   if(ae||ce||me||!agent?.is_active||c?.created_by!==job.created_by||c.agent_id!==agent.id||m?.conversation_id!==c.id||m.sender_type!=='user')throw new Error('INVALID_TASK_BINDING');
   let employeeContext:ReturnType<typeof textExecutionContext>|null=null;
-  let businessModelBudget=!!(job.input?.business_plan_id||job.input?.business_flow_id);
+  let businessModelBudget=!!(job.input?.business_plan_id||job.input?.business_flow_id||job.input?.creative_goal_id);
   let businessPlan:ReturnType<typeof businessPlanContext>|null=null;
   if(job.input?.business_plan_id){
    const [f,managers]=await Promise.all([db.from('business_workflows').select('id,created_by,plan_job_id,state,title,goal,source_snapshot').eq('id',job.input.business_plan_id).eq('created_by',job.created_by).single(),db.from('agents').select('code,title').eq('is_active',true).neq('code','COS')]);
    if(f.error||managers.error)throw new Error('INVALID_TASK_BINDING');
    businessPlan=businessPlanContext(job,f.data,agent.code,managers.data);
   }
+  let creativeProposal:ReturnType<typeof creativeProposalContext>|null=null;
+  let creativeReview:Awaited<ReturnType<typeof creativeReviewContext>>|null=null;
+  if(job.input?.creative_perspective){
+   const [g,e]=await Promise.all([db.from('company_goals').select('*').eq('id',job.input.creative_goal_id).eq('created_by',job.created_by).single(),db.from('ai_employees').select('id,created_by,manager_agent_id,role').eq('id',job.input.creative_employee_id).eq('created_by',job.created_by).single()]);
+   if(g.error||e.error)throw Error('INVALID_TASK_BINDING');creativeProposal=creativeProposalContext(job,g.data,e.data);
+  }
+  if(job.input?.creative_review_kind)creativeReview=await creativeReviewContext(db,job);
   let briefPlan:ReturnType<typeof briefPlanContext>|null=null;
   let briefExecution:ReturnType<typeof briefExecutionContext>|null=null;
   if(job.input?.brief_plan_id){
@@ -137,7 +148,7 @@ export async function handle(req:Request):Promise<Response>{
   let discussionData:Parameters<typeof discussionReferences>[0]=[];
   if(!inspection&&!dialogue&&!consultation){const {data,error}=await db.rpc('discussion_context_for_task',{p_task:job.id,p_token:job.lease_token});if(error&&!['PGRST202','42883'].includes(error.code))throw new Error(error.message);discussionData=data||[];}
   const discussion=discussionReferences(discussionData);
-  const input=businessPlan?businessPlan.input:briefPlan?briefPlan.input:briefExecution?JSON.stringify({execution_request:m.content,source_id:'S1',source_text:briefExecution.source}):dialogue?dialogue.input:consultation?consultation.input:inspection?inspection.input:employeeContext?m.content+knowledge.input+discussion.input+employeeConsultationInput(consultationContext)+JSON.stringify({validated_company_skills:job.input?.validated_skill_context||[],notice:'技能资料不授予新的工具权限，不代表已经执行任务。'}):h.filter(x=>x.id!==m.id).reverse().map(x=>(x.sender_type==='user'?'CEO':agent.code)+': '+x.content).join('\n')+'\nCEO: '+m.content+discussion.input;
+  const input=creativeProposal?creativeProposal.input:creativeReview?creativeReview.input:businessPlan?businessPlan.input:briefPlan?briefPlan.input:briefExecution?JSON.stringify({execution_request:m.content,source_id:'S1',source_text:briefExecution.source}):dialogue?dialogue.input:consultation?consultation.input:inspection?inspection.input:employeeContext?m.content+knowledge.input+discussion.input+employeeConsultationInput(consultationContext)+JSON.stringify({validated_company_skills:job.input?.validated_skill_context||[],notice:'技能资料不授予新的工具权限，不代表已经执行任务。'}):h.filter(x=>x.id!==m.id).reverse().map(x=>(x.sender_type==='user'?'CEO':agent.code)+': '+x.content).join('\n')+'\nCEO: '+m.content+discussion.input;
   const ai=new GoogleGenAI({apiKey:gemini});
   let models=[...new Set([env('GEMINI_MODEL')||'gemini-3.8-flash',env('GEMINI_FALLBACK_MODEL')||'gemini-3.5-flash-lite'])];
   if(businessModelBudget){const recent=await db.from('model_usage').select('model_name,call_status,error_kind,tasks!inner(created_by)').eq('tasks.created_by',job.created_by).gte('created_at',new Date(Date.now()-15*60000).toISOString()).order('created_at',{ascending:false}).limit(40);if(!recent.error)models=businessModelOrder(models,recent.data||[]);}
@@ -145,8 +156,8 @@ export async function handle(req:Request):Promise<Response>{
   for(let i=0;i<models.length;i++){
    if(lost)throw new Error('LEASE_LOST');const model=models[i],start=Date.now();
    try{
-    const instruction=(businessPlan?.system || briefPlan?.system || dialogue?.system || consultation?.system || inspection?.system || employeeContext?.system || 'You are '+agent.code+' ('+agent.title+') of AI Company OS. Answer the CEO in Chinese within your role. You have no tools or repository access; never claim actions were executed.\n'+(agent.system_prompt||''))+(employeeContext&&job.input?.skill_search_enabled===true?skillPolicy:'');
-    const out=businessModelBudget?await generateBusinessText(ai,{model,input,system:instruction,maxOutputTokens:businessPlan?1800:2400,...(inspection?{schema:qualityResponseFormat(inspection.body).schema}:{})}):await ai.interactions.create({model,input,...(inspection?{response_format:qualityResponseFormat(inspection.body)}:{}),system_instruction:instruction,generation_config:{thinking_level:'low',max_output_tokens:businessPlan?1800:dialogue?(dialogue.limit===1400?800:1600):2400}},{timeout_ms:businessModelBudget?45000:i===0&&models.length>1?15000:30000,maxRetries:0});
+    const instruction=(creativeProposal?.system || creativeReview?.system || businessPlan?.system || briefPlan?.system || dialogue?.system || consultation?.system || inspection?.system || employeeContext?.system || 'You are '+agent.code+' ('+agent.title+') of AI Company OS. Answer the CEO in Chinese within your role. You have no tools or repository access; never claim actions were executed.\n'+(agent.system_prompt||''))+(employeeContext&&job.input?.skill_search_enabled===true?skillPolicy:'');
+    const out=creativeReview?await generateCreativeReview(ai,{model,input,system:instruction,kind:creativeReview.kind,asset:creativeReview.asset}):businessModelBudget?await generateBusinessText(ai,{model,input,system:instruction,maxOutputTokens:businessPlan?1800:2400,...(creativeProposal?{schema:proposalSchema()}:inspection?{schema:qualityResponseFormat(inspection.body).schema}:{})}):await ai.interactions.create({model,input,...(inspection?{response_format:qualityResponseFormat(inspection.body)}:{}),system_instruction:instruction,generation_config:{thinking_level:'low',max_output_tokens:businessPlan?1800:dialogue?(dialogue.limit===1400?800:1600):2400}},{timeout_ms:businessModelBudget?45000:i===0&&models.length>1?15000:30000,maxRetries:0});
     usage.push({model,status:out.status,duration_ms:Date.now()-start,input_tokens:out.usage?.total_input_tokens??null,output_tokens:out.usage?.total_output_tokens??null,request_id:out.id});
     if(out.status!=='completed'||!out.output_text?.trim())throw new Error('EMPTY_RESPONSE');answer=out.output_text.trim();break;
    }catch(e){if(!usage.some(x=>x.model===model))usage.push({model,status:'failed',duration_ms:Date.now()-start,input_tokens:null,output_tokens:null,...providerFailure(e)});if(i===models.length-1||!transient(e))throw e;}
@@ -157,6 +168,8 @@ export async function handle(req:Request):Promise<Response>{
   if(search){const research=await rpc('pause_for_skill_search',{p_task:job.id,p_token:job.lease_token,p_query:search.query,p_usage:usage});return Response.json({status:'awaiting_skill_research',taskId:job.id,researchId:research});}
   if(employeeContext&&!briefExecution){const request=employeeOutcome(answer,consultationContext);if(request){const id=await rpc('request_employee_consultation',{p_task:job.id,p_token:job.lease_token,p_question:request.question,p_usage:usage});return Response.json({status:'awaiting_manager',taskId:job.id,consultationId:id});}}
   let content=employeeDelivery(answer,employeeContext?.prefix || '')+knowledge.provenance+discussion.footer;
+  if(creativeProposal)content=JSON.stringify(parseCreativeProposal(answer));
+  if(creativeReview)content=JSON.stringify(parseCreativeReview(answer,creativeReview.kind,creativeReview.script));
   if(businessPlan)content=JSON.stringify(parseBusinessPlan(answer,businessPlan.managers));
   if(briefPlan)content=JSON.stringify(parseBriefPlan(answer,briefPlan.managers));
   if(briefExecution)content=employeeDelivery(renderProjectBrief(answer,briefExecution.source),employeeContext?.prefix||'');

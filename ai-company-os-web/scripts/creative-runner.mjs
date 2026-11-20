@@ -8,7 +8,13 @@ import {discoverSkills} from './skill-discovery.mjs';
 const exec=promisify(execFile),adapter=resolve('sandbox/creative');
 export async function creativeDiscovery(fetcher=fetch){
  const catalog=await discoverSkills({query:'image speech generation agent skills',capability:'creative'},fetcher);
- const trace=catalog.trace,candidates=[];
+ const trace=catalog.trace,candidates=[],alternatives=[];
+ for(const query of ['CPU text to image openvino','Chinese offline text to speech onnx']){
+  try{const r=await fetcher('https://api.github.com/search/repositories?q='+encodeURIComponent(query+' archived:false')+'&sort=stars&per_page=3',{headers:{'User-Agent':'AI-Company-OS-Capability-Employee'},redirect:'error',signal:AbortSignal.timeout(15000)});if(!r.ok)throw Error('search_'+r.status);const data=await r.json();
+   for(const item of data.items||[])if(!item.private&&!item.archived)alternatives.push({repository:item.full_name,stars:item.stargazers_count,license:item.license?.spdx_id||'unknown',selected:false,reason:'发现的成熟技术候选；未适配当前固定CPU执行接口，未运行或登记为已验证能力'});
+   trace.push({action:'mature_technology_search',query,repositories:(data.items||[]).map(x=>x.full_name)});
+  }catch{trace.push({action:'mature_technology_search',query,status:'unavailable_using_supported_upstream_catalog'});}
+ }
  for(const [repository,profile] of [['openvinotoolkit/openvino.genai','character_reference_cpu_v1'],['k2-fsa/sherpa-onnx','mandarin_tts_cpu_v1']]){
   const get=async path=>{const r=await fetcher('https://api.github.com/repos/'+repository+path,{headers:{'User-Agent':'AI-Company-OS-Capability-Employee'},redirect:'error',signal:AbortSignal.timeout(15000)});if(!r.ok)throw Error('upstream_metadata_'+r.status);return r.json();};
   const repo=await get(''),commit=await get('/commits/'+encodeURIComponent(repo.default_branch));
@@ -16,7 +22,7 @@ export async function creativeDiscovery(fetcher=fetch){
   candidates.push({repository,commit_sha:commit.sha,license:repo.license.spdx_id,profile,stars:repo.stargazers_count,selected:true,reason:'成熟CPU推理接口与现有免费托管环境匹配；模型数据仍需下载、校验和真实生成验证'});
   trace.push({action:'mature_upstream_inspected',repository,profile,commit_sha:commit.sha});
  }
- return {catalog_candidates:catalog.candidates.map(c=>({repository:c.repository,commit_sha:c.commit_sha,skill_path:c.skill_path,rejected:c.rejected})),candidates,trace};
+ return {alternatives,catalog_candidates:catalog.candidates.map(c=>({repository:c.repository,commit_sha:c.commit_sha,skill_path:c.skill_path,rejected:c.rejected})),candidates,trace};
 }
 async function generate(spec,reuse){
  const work=await mkdtemp(join(tmpdir(),'company-creative-')),models=resolve(process.env.RUNNER_TEMP||tmpdir(),'company-creative-model-cache'),out=join(work,'out');
