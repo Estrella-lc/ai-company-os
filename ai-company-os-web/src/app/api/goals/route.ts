@@ -8,7 +8,8 @@ export async function GET(request:Request){
  if(!id){const r=await a.db.from('company_goals').select('id,title,state,created_at,last_error').eq('created_by',a.user.id).order('created_at',{ascending:false}).limit(30);return r.error?fail('业务目标暂时无法读取',503):NextResponse.json({goals:r.data},{headers:{'Cache-Control':'no-store'}});}
  if(!uuid.test(id))return fail('无效目标',400);
  const g=await a.db.from('company_goals').select('*').eq('id',id).eq('created_by',a.user.id).single();if(g.error)return fail('目标不存在',404);
- const jobs=[...Object.values(g.data.proposal_jobs||{}),...Object.values(g.data.review_jobs||{}),g.data.research_job].filter((x):x is string=>typeof x==='string'&&uuid.test(x));
+ const film=await a.db.from('film_workflows').select('id,state,storyboard,capability_review,last_error,employee_jobs').eq('goal_id',id).eq('created_by',a.user.id).maybeSingle();
+ const jobs=[...Object.values(g.data.proposal_jobs||{}),...Object.values(g.data.review_jobs||{}),...Object.values(film.data?.employee_jobs||{}),g.data.research_job].filter((x):x is string=>typeof x==='string'&&uuid.test(x));
  const [tasks,messages,usage]=await Promise.all([a.db.from('tasks').select('id,execution_state,attempt_count,last_error_code,input,result,started_at,finished_at').eq('created_by',a.user.id).in('id',jobs),a.db.from('messages').select('reply_task_id,content').in('reply_task_id',jobs),a.db.from('model_usage').select('task_id,model_name,input_tokens,output_tokens,duration_ms,call_status,error_kind,http_status').in('task_id',jobs)]);
  if(tasks.error||messages.error)return fail('目标执行记录暂时无法读取',503);
  const research=tasks.data.find(t=>t.id===g.data.research_job),asset=url.searchParams.get('asset');
@@ -18,9 +19,9 @@ export async function GET(request:Request){
   const file=await a.db.storage.from('company-creative').download(path);if(file.error)return fail('文件读取失败',503);
   return new NextResponse(await file.data.arrayBuffer(),{headers:{'Content-Type':asset==='image'?'image/png':'audio/wav','Content-Disposition':(url.searchParams.has('download')?'attachment':'inline')+'; filename="'+(asset==='image'?'character-reference.png':'voice-sample.wav')+'"','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
  }
- const film=await a.db.from('film_workflows').select('id,state,storyboard,capability_review,last_error,employee_jobs').eq('goal_id',id).eq('created_by',a.user.id).maybeSingle();
+ let filmInspection=null;try{const body=messages.data.find(m=>m.reply_task_id===film.data?.employee_jobs?.inspection)?.content;if(body)filmInspection=JSON.parse(body);}catch{filmInspection=null;}
  const safeTasks=tasks.data.map(t=>({id:t.id,state:t.execution_state,attempts:t.attempt_count,error:t.last_error_code,result:t.id===g.data.research_job?t.result:null}));
- return NextResponse.json({goal:g.data,film:film.error?null:film.data,tasks:safeTasks,reports:messages.data.filter(m=>Object.values(g.data.review_jobs||{}).includes(m.reply_task_id)).map(m=>{let report;try{report=JSON.parse(m.content);}catch{report=null;}return {job_id:m.reply_task_id,report};}),usage:usage.data||[],usageUnavailable:!!usage.error},{headers:{'Cache-Control':'no-store'}});
+ return NextResponse.json({goal:g.data,film:film.error||!film.data?null:{...film.data,inspection:filmInspection},tasks:safeTasks,reports:messages.data.filter(m=>Object.values(g.data.review_jobs||{}).includes(m.reply_task_id)).map(m=>{let report;try{report=JSON.parse(m.content);}catch{report=null;}return {job_id:m.reply_task_id,report};}),usage:usage.data||[],usageUnavailable:!!usage.error},{headers:{'Cache-Control':'no-store'}});
 }
 export async function POST(request:Request){
  const a=await authorize();if(!a)return fail('Unauthorized',401);let b;try{b=await request.json();}catch{return fail('请求格式错误',400);}
