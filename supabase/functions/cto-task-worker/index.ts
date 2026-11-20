@@ -1,4 +1,4 @@
-import {filmPlanningContext,parseFilmPlanning} from './film-planning.ts';
+import {filmPlanningContext,parseFilmPlanning,filmPlanningSchema,filmCandidateError} from './film-planning.ts';
 import {creativeProposalContext,proposalSchema,parseCreativeProposal,parseCreativeReview} from './creative-goal.ts';
 import {creativeBridge,creativeReviewContext,generateCreativeReview} from './creative-bridge.ts';
 import {skillPolicy,skillSearch} from './skill-policy.ts';
@@ -164,7 +164,7 @@ export async function handle(req:Request):Promise<Response>{
    if(lost)throw new Error('LEASE_LOST');const model=models[i],start=Date.now();
    try{
     const instruction=(filmPlanning?.system || creativeProposal?.system || creativeReview?.system || businessPlan?.system || briefPlan?.system || dialogue?.system || consultation?.system || inspection?.system || employeeContext?.system || 'You are '+agent.code+' ('+agent.title+') of AI Company OS. Answer the CEO in Chinese within your role. You have no tools or repository access; never claim actions were executed.\n'+(agent.system_prompt||''))+(employeeContext&&job.input?.skill_search_enabled===true?skillPolicy:'');
-    const out=creativeReview?await generateCreativeReview(ai,{model,input,system:instruction,kind:creativeReview.kind,asset:creativeReview.asset}):businessModelBudget?await generateBusinessText(ai,{model,input,system:instruction,maxOutputTokens:businessPlan?1800:2400,...(creativeProposal?{schema:proposalSchema()}:inspection?{schema:qualityResponseFormat(inspection.body).schema}:{})}):await ai.interactions.create({model,input,...(inspection?{response_format:qualityResponseFormat(inspection.body)}:{}),system_instruction:instruction,generation_config:{thinking_level:'low',max_output_tokens:businessPlan?1800:dialogue?(dialogue.limit===1400?800:1600):2400}},{timeout_ms:businessModelBudget?45000:i===0&&models.length>1?15000:30000,maxRetries:0});
+    const out=creativeReview?await generateCreativeReview(ai,{model,input,system:instruction,kind:creativeReview.kind,asset:creativeReview.asset}):businessModelBudget?await generateBusinessText(ai,{model,input,system:instruction,maxOutputTokens:businessPlan?1800:2400,...(filmPlanning?{schema:filmPlanningSchema(filmPlanning.phase)}:creativeProposal?{schema:proposalSchema()}:inspection?{schema:qualityResponseFormat(inspection.body).schema}:{})}):await ai.interactions.create({model,input,...(inspection?{response_format:qualityResponseFormat(inspection.body)}:{}),system_instruction:instruction,generation_config:{thinking_level:'low',max_output_tokens:businessPlan?1800:dialogue?(dialogue.limit===1400?800:1600):2400}},{timeout_ms:businessModelBudget?45000:i===0&&models.length>1?15000:30000,maxRetries:0});
     usage.push({model,status:out.status,duration_ms:Date.now()-start,input_tokens:out.usage?.total_input_tokens??null,output_tokens:out.usage?.total_output_tokens??null,request_id:out.id});
     if(out.status!=='completed'||!out.output_text?.trim())throw new Error('EMPTY_RESPONSE');answer=out.output_text.trim();break;
    }catch(e){if(!usage.some(x=>x.model===model))usage.push({model,status:'failed',duration_ms:Date.now()-start,input_tokens:null,output_tokens:null,...providerFailure(e)});if(i===models.length-1||!transient(e))throw e;}
@@ -175,7 +175,7 @@ export async function handle(req:Request):Promise<Response>{
   if(search){const research=await rpc('pause_for_skill_search',{p_task:job.id,p_token:job.lease_token,p_query:search.query,p_usage:usage});return Response.json({status:'awaiting_skill_research',taskId:job.id,researchId:research});}
   if(employeeContext&&!briefExecution){const request=employeeOutcome(answer,consultationContext);if(request){const id=await rpc('request_employee_consultation',{p_task:job.id,p_token:job.lease_token,p_question:request.question,p_usage:usage});return Response.json({status:'awaiting_manager',taskId:job.id,consultationId:id});}}
   let content=employeeDelivery(answer,employeeContext?.prefix || '')+knowledge.provenance+discussion.footer;
-  if(filmPlanning)content=JSON.stringify(parseFilmPlanning(answer,filmPlanning));
+  if(filmPlanning)try{content=JSON.stringify(parseFilmPlanning(answer,filmPlanning));}catch(e){const reason=filmCandidateError(e);await rpc('record_film_candidate',{p_task:job.id,p_token:job.lease_token,p_content:answer,p_error:reason});throw Error('film_candidate_'+reason.toLowerCase());}
   if(creativeProposal)content=JSON.stringify(parseCreativeProposal(answer));
   if(creativeReview)content=JSON.stringify(parseCreativeReview(answer,creativeReview.kind,creativeReview.script));
   if(businessPlan)content=JSON.stringify(parseBusinessPlan(answer,businessPlan.managers));
@@ -187,7 +187,7 @@ export async function handle(req:Request):Promise<Response>{
   await rpc('complete_chat_reply',{p_task:job.id,p_token:job.lease_token,p_content:content,p_usage:usage});
   console.info('EDGE_TASK_SUCCEEDED',{task:job.id});return Response.json({status:'succeeded',taskId:job.id});
  }catch(e){
-  const code=(e as Error)?.message==='INVALID_TASK_BINDING'?'invalid_binding':lost?'lease_lost':transient(e)?'provider_unavailable':'execution_failed';
+  const code=/^film_candidate_[a-z_]+$/.test((e as Error)?.message||'')?(e as Error).message:(e as Error)?.message==='INVALID_TASK_BINDING'?'invalid_binding':lost?'lease_lost':transient(e)?'provider_unavailable':'execution_failed';
   if(job&&!lost)try{await rpc('fail_chat_reply',{p_task:job.id,p_token:job.lease_token,p_code:code,p_retry:transient(e),p_usage:usage})}catch{console.warn('EDGE_FAIL_WRITE',{task:job.id})}
   console.warn('EDGE_TASK_FAILED',{task:job?.id,code});return Response.json({status:'failed',code},{status:503});
  }finally{if(timer!==undefined)clearInterval(timer)}

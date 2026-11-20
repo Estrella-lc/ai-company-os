@@ -32,6 +32,7 @@ export async function PATCH(request:Request){
  if(!b||!uuid.test(b.id||''))return fail('无效目标',400);
  let r;
  if(b.action==='select'&&uuid.test(b.proposalJob||''))r=await a.db.rpc('select_company_goal_proposal',{p_goal:b.id,p_job:b.proposalJob});
+ else if(b.action==='retry_film')r=await a.db.rpc('retry_film_planning',{p_goal:b.id});
  else if(b.action==='plan_film'){const f=await a.db.rpc('request_film_planning',{p_goal:b.id});return f.error?fail('分镜规划暂不可用'):NextResponse.json({success:true,id:f.data});}
  else if(b.action==='revise_voice')r=await a.db.rpc('revise_company_goal_voice',{p_goal:b.id});
  else if(b.action==='retry')r=await a.db.rpc('retry_company_goal',{p_goal:b.id});
