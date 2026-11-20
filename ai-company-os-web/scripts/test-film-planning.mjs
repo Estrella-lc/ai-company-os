@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {filmPlanningContext,parseFilmPlanning} from '../../supabase/functions/cto-task-worker/film-planning.ts';
+const job={id:'j',created_by:'owner',assigned_agent_id:'manager',input:{film_phase:'storyboard',film_workflow_id:'f',creative_employee_id:'e'}};
+const flow={id:'f',created_by:'owner',employee_jobs:{storyboard:'j'},source_snapshot:{spec:{voice_text:'固定对白'},assets:{image:{sha256:'a'.repeat(64)},voice:{sha256:'b'.repeat(64),duration_seconds:4}}}};
+const employee={id:'e',created_by:'owner',manager_agent_id:'manager',role:'text_executor'};
+const c=filmPlanningContext(job,flow,employee);
+assert.throws(()=>filmPlanningContext(job,{...flow,created_by:'foreign'},employee),/BINDING/);
+assert.throws(()=>filmPlanningContext(job,flow,{...employee,role:'quality_inspector'}),/BINDING/);
+const plan={shots:[{id:'a',start:0,duration:10,image:'character',motion:'still'},{id:'b',start:10,duration:5,image:'character',voice:'dialogue',dialogue:'固定对白',motion:'slow_push'}]};
+assert.equal(parseFilmPlanning(JSON.stringify(plan),c).shots.length,2);
+plan.shots[1].dialogue='改写对白';assert.throws(()=>parseFilmPlanning(JSON.stringify(plan),c),/FIDELITY/);
+assert.throws(()=>parseFilmPlanning('{"status":"ready","summary":"ok","missing_skills":["unknown"]}',{...c,phase:'capabilities'}),/CAPABILITIES/);
+assert.throws(()=>parseFilmPlanning('{"verdict":"pass","summary":"ok","evidence":[]}',{...c,phase:'inspection'}),/INSPECTION/);
+console.log('PASS: workflow/owner/employee bindings, fixed asset dialogue, capability gaps and independent plan evidence');
