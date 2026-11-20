@@ -63,4 +63,12 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.advance_film_planning() FROM PUBLIC,anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION public.advance_film_planning() TO service_role;
+DO $wake$
+DECLARE d text;pos integer;
+BEGIN
+ d:=pg_get_functiondef('private.business_dispatch_ready()'::regprocedure);pos:=position('SELECT EXISTS(' in d);
+ IF pos=0 THEN RAISE EXCEPTION 'Dispatcher patch target missing';END IF;
+ d:=overlay(d placing 'SELECT EXISTS(SELECT 1 FROM public.film_workflows f JOIN LATERAL jsonb_each_text(f.employee_jobs) p ON true JOIN public.tasks j ON j.id=p.value::uuid WHERE f.state IN (''planning'',''reviewing'') AND j.execution_state IN (''succeeded'',''failed'',''cancelled'')) OR EXISTS(' from pos for length('SELECT EXISTS('));
+ EXECUTE d;
+END $wake$;
 COMMIT;
