@@ -3,6 +3,7 @@ import {tmpdir} from 'node:os';
 import {resolve,join} from 'node:path';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
+import {runCreative} from './creative-runner.mjs';
 import {runTechnology} from './technology-runner.mjs';
 import {discoverSkills} from './skill-discovery.mjs';
 import {runSubtitleDelivery} from './subtitle-delivery.mjs';
@@ -48,6 +49,7 @@ try{
  if(!fixture){const document=await claimDocumentJob(api);if(document){await runDocumentJob(document,api);process.exit(0);}const delivery=(await api({action:'media_claim'})).job;if(delivery){await runSubtitleDelivery(delivery,api);process.exit(0);}}
  job=fixture?{id:'local-fixture',input:{query:'subtitle agent skills',capability:'subtitles'}}:(await api({action:'claim'})).job;
  if(!job){console.log('No eligible skill research job.');process.exit(0);}
+ if(job.input.mode==='creative_samples'){await runCreative(job,api);process.exit(0);}
  if(job.input.mode?.startsWith('technology_')){await runTechnology(job,api);process.exit(0);}
  const report=await discoverSkills(job.input);
  if(job.input.capability==='documents')await documentResearch(report,evidence);
@@ -69,4 +71,3 @@ try{
  if(job && !fixture)try{await api({action:'fail',taskId:job.id,leaseToken:job.lease_token,report:{summary:'研究或验证执行失败，将在预算与次数限制内重试。',error:String(e.message).slice(0,500)}});}catch{console.error('FAIL_CALLBACK_UNAVAILABLE');}
  process.exitCode=1;
 }
-
