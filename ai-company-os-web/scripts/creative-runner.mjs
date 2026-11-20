@@ -61,7 +61,7 @@ export async function runCreativeFixture(destination){
 export async function runCreative(job,api){
  let stage='search';const phase=s=>{stage=s;console.log('CREATIVE_PHASE',s);};const deadline=Date.now()+430000;
  try{
-  const discovery=job.input.reuse_manifest?{reused:true,trace:[{action:'reuse_company_verified_capability'}],candidates:[]}:await creativeDiscovery();
+  const discovery=job.input.reuse_manifest?{reused:!job.input.spec.voice_only,trace:[{action:job.input.spec.voice_only?'reuse_parent_pinned_models_pending_reinspection':'reuse_company_verified_capability'}],candidates:[]}:await creativeDiscovery();
   const result=await generate(job.input.spec,job.input.reuse_manifest,phase,deadline);phase('upload');const grants=await api({action:'creative_uploads',taskId:job.id,leaseToken:job.lease_token});
   for(const [name,key] of [['character.png','image'],['voice.wav','voice']]){
    if(key==='image'&&job.input.spec.voice_only)continue;
