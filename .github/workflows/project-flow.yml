@@ -1,0 +1,26 @@
+name: Project flow validation
+on:
+  pull_request:
+    paths:
+      - 'ai-company-os-web/src/app/projects/page.tsx'
+      - 'ai-company-os-web/src/components/project-flow-prototype.tsx'
+      - '.github/workflows/project-flow.yml'
+  push:
+    branches:
+      - feature/project-flow-view
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-company-os-web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ai-company-os-web/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run build
