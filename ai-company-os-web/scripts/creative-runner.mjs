@@ -53,7 +53,10 @@ export async function runCreativeFixture(destination){
  // Only this explicitly synthetic fixture is retained in CI evidence. Real jobs never copy assets here.
  for(const name of ['character.png','voice.wav','verification.json'])await writeFile(join(destination,name),await readFile(join(result.out,name)));
  await writeFile(join(destination,'research.json'),JSON.stringify({discovery,manifest:result.manifest},null,2));
- console.log(JSON.stringify({fixture:'creative_cpu_samples',verification:result.verification}));
+ const corrected=await generate({...creativeFixture,voice_only:true,preserved_image:result.verification.files['character.png']},result.manifest,phase);
+ if(corrected.verification.files['character.png'].sha256!==result.verification.files['character.png'].sha256||await readFile(join(corrected.out,'character.png')).then(()=>true,()=>false))throw Error('voice_only_image_preservation');
+ await writeFile(join(destination,'voice-correction-verification.json'),JSON.stringify(corrected.verification,null,2));
+ console.log(JSON.stringify({fixture:'creative_cpu_samples',verification:result.verification,voice_only_correction:corrected.verification}));
 }
 export async function runCreative(job,api){
  let stage='search';const phase=s=>{stage=s;console.log('CREATIVE_PHASE',s);};const deadline=Date.now()+430000;
