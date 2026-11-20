@@ -6,6 +6,10 @@ on:
         description: 'Only run synthetic document adapter tests; no private files or database claims'
         type: boolean
         default: false
+      creative_fixture:
+        description: 'Only validate synthetic CPU creative samples and warm public model cache; no database claims'
+        type: boolean
+        default: false
   pull_request:
     paths:
       - 'sandbox/documents/**'
@@ -44,19 +48,28 @@ jobs:
             sandbox/documents
             skills/document-processing
           sparse-checkout-cone-mode: false
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        id: creative-model-cache
         with:
           path: ${{ runner.temp }}/company-creative-model-cache
           key: creative-public-models-${{ hashFiles('sandbox/creative/creative.py', 'sandbox/creative/requirements.txt') }}
       - name: Search, inspect and validate one capability
         env:
           DOCUMENT_FIXTURE: ${{ inputs.document_fixture }}
+          CREATIVE_FIXTURE: ${{ inputs.creative_fixture }}
         run: |
-          if [ "$DOCUMENT_FIXTURE" = "true" ]; then
+          if [ "$CREATIVE_FIXTURE" = "true" ]; then
+            node ai-company-os-web/scripts/skill-runner.mjs --creative-fixture
+          elif [ "$DOCUMENT_FIXTURE" = "true" ]; then
             node ai-company-os-web/scripts/skill-runner.mjs --document-fixture
           else
             node ai-company-os-web/scripts/skill-runner.mjs
           fi
+      - uses: actions/cache/save@v4
+        if: always() && steps.creative-model-cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ runner.temp }}/company-creative-model-cache
+          key: creative-public-models-${{ hashFiles('sandbox/creative/creative.py', 'sandbox/creative/requirements.txt') }}
       - name: Retain synthetic evidence briefly
         if: always()
         uses: actions/upload-artifact@v4
