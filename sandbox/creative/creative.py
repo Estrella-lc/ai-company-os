@@ -76,17 +76,19 @@ def generate(models,request,out):
  if not isinstance(spec.get('image_prompt_en'),str) or not 20<=len(spec['image_prompt_en'])<=1200: raise ValueError('image_prompt')
  if not isinstance(spec.get('voice_text'),str) or not 8<=len(spec['voice_text'])<=80: raise ValueError('voice_text')
  out.mkdir(parents=True,exist_ok=True)
- print('CREATIVE_ENGINE image_load',flush=True)
- pipe=ov.Text2ImagePipeline(str(models/'image'))
- pipe.reshape(1,768,512,1.0)
- pipe.compile('CPU',INFERENCE_NUM_THREADS=2,NUM_STREAMS='1',PERFORMANCE_HINT='LATENCY')
- print('CREATIVE_ENGINE image_generate',flush=True)
- image=pipe.generate(spec['image_prompt_en'],width=512,height=768,num_inference_steps=8,guidance_scale=1.0,rng_seed=int(spec.get('seed',42)))
- image=Image.fromarray(image.data[0]);image.save(out/'character.png')
- del pipe
+ if not spec.get('voice_only'):
+  print('CREATIVE_ENGINE image_load',flush=True)
+  pipe=ov.Text2ImagePipeline(str(models/'image'))
+  pipe.reshape(1,768,512,1.0)
+  pipe.compile('CPU',INFERENCE_NUM_THREADS=2,NUM_STREAMS='1',PERFORMANCE_HINT='LATENCY')
+  print('CREATIVE_ENGINE image_generate',flush=True)
+  image=pipe.generate(spec['image_prompt_en'],width=512,height=768,num_inference_steps=8,guidance_scale=1.0,rng_seed=int(spec.get('seed',42)))
+  image=Image.fromarray(image.data[0]);image.save(out/'character.png')
+  del pipe
  print('CREATIVE_ENGINE voice_load',flush=True)
  voice=models/'vits-melo-tts-zh_en'
- config=sherpa_onnx.OfflineTtsConfig(model=sherpa_onnx.OfflineTtsModelConfig(vits=sherpa_onnx.OfflineTtsVitsModelConfig(model=str(voice/'model.onnx'),lexicon=str(voice/'lexicon.txt'),tokens=str(voice/'tokens.txt'),dict_dir=str(voice/'dict')),num_threads=2,provider='cpu'),max_num_sentences=1)
+ config=sherpa_onnx.OfflineTtsConfig(model=sherpa_onnx.OfflineTtsModelConfig(vits=sherpa_onnx.OfflineTtsVitsModelConfig(model=str(voice/'model.onnx'),lexicon=str(voice/'lexicon.txt'),tokens=str(voice/'tokens.txt'),dict_dir=str(voice/'dict')),num_threads=2,provider='cpu'),# Short bounded scripts fit in one utterance; do not infer a two-character salutation alone.
+ max_num_sentences=0)
  if not config.validate(): raise ValueError('voice_configuration')
  tts=sherpa_onnx.OfflineTts(config)
  print('CREATIVE_ENGINE voice_generate',flush=True)
@@ -96,9 +98,9 @@ def generate(models,request,out):
  if not 1<=duration<=20 or np.max(np.abs(samples))<0.01 or np.mean(np.abs(samples)>=0.999)>0.01: raise ValueError('voice_quality')
  with wave.open(str(out/'voice.wav'),'wb') as f:
   f.setnchannels(1);f.setsampwidth(2);f.setframerate(audio.sample_rate);f.writeframes((np.clip(samples,-1,1)*32767).astype('<i2').tobytes())
- if min(image.size)<512 or max(ImageStat.Stat(image).stddev)<12: raise ValueError('image_quality')
- result={'scope':'creative_samples_v1','passed':True,'image':{'width':image.width,'height':image.height},'voice':{'sample_rate':audio.sample_rate,'duration_seconds':duration,'rms':float(np.sqrt(np.mean(samples*samples)))},
-  'files':{name:{'sha256':sha(out/name),'bytes':(out/name).stat().st_size} for name in ('character.png','voice.wav')},'elapsed_seconds':round(time.monotonic()-start,3),'api_cost_usd':0,
+ if not spec.get('voice_only') and (min(image.size)<512 or max(ImageStat.Stat(image).stddev)<12): raise ValueError('image_quality')
+ result={'scope':'creative_samples_v1','passed':True,'image':{'width':512,'height':768},'voice':{'sample_rate':audio.sample_rate,'duration_seconds':duration,'rms':float(np.sqrt(np.mean(samples*samples)))},
+  'files':{**({'character.png':spec['preserved_image']} if spec.get('voice_only') else {'character.png':{'sha256':sha(out/'character.png'),'bytes':(out/'character.png').stat().st_size}}),'voice.wav':{'sha256':sha(out/'voice.wav'),'bytes':(out/'voice.wav').stat().st_size}},'elapsed_seconds':round(time.monotonic()-start,3),'api_cost_usd':0,
   'isolation':{'network_disabled':True,'root_read_only':True,'unprivileged':os.getuid()!=0,'secrets_absent':not any(k in os.environ for k in ('GEMINI_API_KEY','SUPABASE_SERVICE_ROLE_KEY','ACTIONS_ID_TOKEN_REQUEST_TOKEN'))},'limitations':['单个虚构成年角色参考图，不等于角色一致性或成片能力','固定普通话声音，不支持声音克隆或任意音色','CPU样例验证，不代表商业版权审查或CEO验收']}
  if any(x['bytes']>2_000_000 for x in result['files'].values()): raise ValueError('output_size')
  (out/'verification.json').write_text(json.dumps(result,ensure_ascii=False));print(json.dumps(result))

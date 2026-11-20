@@ -21,3 +21,17 @@ const silent=wav.slice();silent.fill(0,44);assert.throws(()=>validateCreativeBin
 const clipped=wav.slice();const cv=new DataView(clipped.buffer);for(let i=44;i<clipped.length;i+=2)cv.setInt16(i,32767,true);assert.throws(()=>validateCreativeBinary(clipped,'voice'));
 assert.throws(()=>validateCreativeBinary(new Uint8Array(2000001),'image'));
 console.log('PASS: employee bindings, proposal bounds, independent report completeness, literal transcript fidelity, truncated/silent/clipped audio and asset size gates');
+
+// A voice correction may copy only the same owner's hash-bound original image.
+const {creativeBridge}=await import('../../supabase/functions/cto-task-worker/creative-bridge.ts');
+const revision={id:'22222222-2222-4222-8222-222222222222',created_by:'owner',input:{revision_kind:'voice_only',revision_parent:'parent',spec:{preserved_image:{sha256:'a'.repeat(64)}}}};
+let copied=0;
+const storage={copy:async(from,to)=>{assert.equal(from,'owner/parent/lease/character.png');assert(to.startsWith('owner/'+revision.id+'/'));copied++;return {error:null};},createSignedUploadUrl:async()=>({data:{signedUrl:'https://synthetic.invalid/upload'},error:null})};
+let parent={created_by:'owner',execution_state:'succeeded',result:{assets:{image:{sha256:'a'.repeat(64)},image_path:'owner/parent/lease/character.png'}}};
+const db={storage:{from:()=>storage},from:()=>({select:()=>({eq:()=>({eq:()=>({single:async()=>({data:parent,error:null})})})})})};
+const body={action:'creative_uploads',taskId:revision.id,leaseToken:'33333333-3333-4333-8333-333333333333'};
+const grant=await creativeBridge(db,async()=>[revision],body,{runner:'fixture',runUrl:'https://synthetic.invalid/run'});
+assert.deepEqual(await grant.json(),{voice:'https://synthetic.invalid/upload'});assert.equal(copied,1);
+parent={...parent,result:{assets:{image:{sha256:'b'.repeat(64)},image_path:'owner/parent/lease/character.png'}}};
+await assert.rejects(()=>creativeBridge(db,async()=>[revision],body,{runner:'fixture',runUrl:'fixture'}),/CREATIVE_REVISION_BINDING/);assert.equal(copied,1);
+console.log('PASS: voice correction copies only bound original image and refuses mismatched hash');

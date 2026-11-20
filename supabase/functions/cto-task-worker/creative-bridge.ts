@@ -5,6 +5,14 @@ export async function creativeBridge(db:any,rpc:any,body:any,identity:{runner:st
  const j=(await rpc('creative_task_context',binding))?.[0];if(!j)return Response.json({error:'Creative lease denied'},{status:403});
  const prefix=j.created_by+'/'+j.id+'/'+body.leaseToken+'/',storage=db.storage.from('company-creative');
  if(body.action==='creative_uploads'){
+  if(j.input.revision_kind==='voice_only'){
+   const parent=await db.from('tasks').select('created_by,execution_state,result').eq('id',j.input.revision_parent).eq('created_by',j.created_by).single();
+   const old=parent.data?.result?.assets;
+   if(parent.error||parent.data.execution_state!=='succeeded'||old?.image?.sha256!==j.input.spec?.preserved_image?.sha256||!old?.image_path?.startsWith(j.created_by+'/'+j.input.revision_parent+'/'))throw Error('CREATIVE_REVISION_BINDING');
+   const copied=await storage.copy(old.image_path,prefix+'character.png');if(copied.error)throw Error('CREATIVE_IMAGE_COPY');
+   const voice=await storage.createSignedUploadUrl(prefix+'voice.wav');if(voice.error)throw Error('CREATIVE_VOICE_UPLOAD');
+   return Response.json({voice:voice.data.signedUrl});
+  }
   const [image,voice]=await Promise.all(['character.png','voice.wav'].map(n=>storage.createSignedUploadUrl(prefix+n)));
   if(image.error||voice.error)return Response.json({error:'Private upload unavailable'},{status:503});
   return Response.json({image:image.data.signedUrl,voice:voice.data.signedUrl});
@@ -19,6 +27,7 @@ export async function creativeBridge(db:any,rpc:any,body:any,identity:{runner:st
   const bytes=new Uint8Array(await file.data.arrayBuffer()),technical=validateCreativeBinary(bytes,kind);
   const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(x=>x.toString(16).padStart(2,'0')).join('');
   if(hash!==r.verification.files?.[name]?.sha256||bytes.length!==r.verification.files?.[name]?.bytes)throw Error('CREATIVE_ASSET_HASH');
+  if(kind==='image'&&j.input.revision_kind==='voice_only'&&hash!==j.input.spec?.preserved_image?.sha256)throw Error('CREATIVE_PRESERVED_IMAGE_HASH');
   assets[kind]={sha256:hash,bytes:bytes.length,...technical};
  }
  const success=await rpc('finish_creative_samples',{...binding,p_report:{verification:r.verification,manifest:m,discovery:r.discovery,adapter_commit:r.adapter_commit,assets,run_url:identity.runUrl},p_failed:false});

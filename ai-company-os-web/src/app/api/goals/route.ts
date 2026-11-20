@@ -31,6 +31,7 @@ export async function PATCH(request:Request){
  if(!b||!uuid.test(b.id||''))return fail('无效目标',400);
  let r;
  if(b.action==='select'&&uuid.test(b.proposalJob||''))r=await a.db.rpc('select_company_goal_proposal',{p_goal:b.id,p_job:b.proposalJob});
+ else if(b.action==='revise_voice')r=await a.db.rpc('revise_company_goal_voice',{p_goal:b.id});
  else if(b.action==='retry')r=await a.db.rpc('retry_company_goal',{p_goal:b.id});
  else if(b.action==='accept'&&uuid.test(b.researchJob||''))r=await a.db.rpc('accept_company_goal',{p_goal:b.id,p_research:b.researchJob});
  else return fail('无效操作',400);
