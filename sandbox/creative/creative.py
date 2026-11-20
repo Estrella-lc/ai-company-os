@@ -76,14 +76,19 @@ def generate(models,request,out):
  if not isinstance(spec.get('image_prompt_en'),str) or not 20<=len(spec['image_prompt_en'])<=1200: raise ValueError('image_prompt')
  if not isinstance(spec.get('voice_text'),str) or not 8<=len(spec['voice_text'])<=80: raise ValueError('voice_text')
  out.mkdir(parents=True,exist_ok=True)
- pipe=ov.Text2ImagePipeline(str(models/'image'),'CPU',INFERENCE_NUM_THREADS=2)
+ print('CREATIVE_ENGINE image_load',flush=True)
+ pipe=ov.Text2ImagePipeline(str(models/'image'),'CPU',INFERENCE_NUM_THREADS=2,NUM_STREAMS='1',PERFORMANCE_HINT='LATENCY')
+ print('CREATIVE_ENGINE image_generate',flush=True)
  image=pipe.generate(spec['image_prompt_en'],width=512,height=768,num_inference_steps=8,guidance_scale=1.0,rng_seed=int(spec.get('seed',42)))
  image=Image.fromarray(image.data[0]);image.save(out/'character.png')
  del pipe
+ print('CREATIVE_ENGINE voice_load',flush=True)
  voice=models/'vits-melo-tts-zh_en'
  config=sherpa_onnx.OfflineTtsConfig(model=sherpa_onnx.OfflineTtsModelConfig(vits=sherpa_onnx.OfflineTtsVitsModelConfig(model=str(voice/'model.onnx'),lexicon=str(voice/'lexicon.txt'),tokens=str(voice/'tokens.txt'),dict_dir=str(voice/'dict')),num_threads=2,provider='cpu'),max_num_sentences=1)
  if not config.validate(): raise ValueError('voice_configuration')
- audio=sherpa_onnx.OfflineTts(config).generate(spec['voice_text'],sid=0,speed=1.0)
+ tts=sherpa_onnx.OfflineTts(config)
+ print('CREATIVE_ENGINE voice_generate',flush=True)
+ audio=tts.generate(spec['voice_text'],sid=0,speed=1.0)
  samples=np.asarray(audio.samples,dtype=np.float32)
  duration=len(samples)/audio.sample_rate
  if not 1<=duration<=20 or np.max(np.abs(samples))<0.01 or np.mean(np.abs(samples)>=0.999)>0.01: raise ValueError('voice_quality')
