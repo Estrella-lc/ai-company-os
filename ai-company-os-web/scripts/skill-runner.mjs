@@ -3,7 +3,7 @@ import {tmpdir} from 'node:os';
 import {resolve,join} from 'node:path';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
-import {runCreative} from './creative-runner.mjs';
+import {runCreative,runCreativeFixture} from './creative-runner.mjs';
 import {runTechnology} from './technology-runner.mjs';
 import {discoverSkills} from './skill-discovery.mjs';
 import {runSubtitleDelivery} from './subtitle-delivery.mjs';
@@ -37,6 +37,7 @@ let job;
 const evidence=resolve(process.env.RUNNER_TEMP || tmpdir(),'ai-company-skill-evidence');
 try{
  await mkdir(evidence,{recursive:true});
+ if(process.argv.includes('--creative-fixture')){await runCreativeFixture(join(evidence,'creative-synthetic'));process.exit(0);}
  if(process.argv.includes('--document-fixture')){
   const report=await discoverSkills({query:'pdf docx document processing',capability:'documents'});
   await documentResearch(report,evidence);
