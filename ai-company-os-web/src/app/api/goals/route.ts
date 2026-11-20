@@ -18,8 +18,9 @@ export async function GET(request:Request){
   const file=await a.db.storage.from('company-creative').download(path);if(file.error)return fail('文件读取失败',503);
   return new NextResponse(await file.data.arrayBuffer(),{headers:{'Content-Type':asset==='image'?'image/png':'audio/wav','Content-Disposition':(url.searchParams.has('download')?'attachment':'inline')+'; filename="'+(asset==='image'?'character-reference.png':'voice-sample.wav')+'"','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
  }
+ const film=await a.db.from('film_workflows').select('id,state,storyboard,capability_review,last_error,employee_jobs').eq('goal_id',id).eq('created_by',a.user.id).maybeSingle();
  const safeTasks=tasks.data.map(t=>({id:t.id,state:t.execution_state,attempts:t.attempt_count,error:t.last_error_code,result:t.id===g.data.research_job?t.result:null}));
- return NextResponse.json({goal:g.data,tasks:safeTasks,reports:messages.data.filter(m=>Object.values(g.data.review_jobs||{}).includes(m.reply_task_id)).map(m=>{let report;try{report=JSON.parse(m.content);}catch{report=null;}return {job_id:m.reply_task_id,report};}),usage:usage.data||[],usageUnavailable:!!usage.error},{headers:{'Cache-Control':'no-store'}});
+ return NextResponse.json({goal:g.data,film:film.error?null:film.data,tasks:safeTasks,reports:messages.data.filter(m=>Object.values(g.data.review_jobs||{}).includes(m.reply_task_id)).map(m=>{let report;try{report=JSON.parse(m.content);}catch{report=null;}return {job_id:m.reply_task_id,report};}),usage:usage.data||[],usageUnavailable:!!usage.error},{headers:{'Cache-Control':'no-store'}});
 }
 export async function POST(request:Request){
  const a=await authorize();if(!a)return fail('Unauthorized',401);let b;try{b=await request.json();}catch{return fail('请求格式错误',400);}
@@ -31,6 +32,7 @@ export async function PATCH(request:Request){
  if(!b||!uuid.test(b.id||''))return fail('无效目标',400);
  let r;
  if(b.action==='select'&&uuid.test(b.proposalJob||''))r=await a.db.rpc('select_company_goal_proposal',{p_goal:b.id,p_job:b.proposalJob});
+ else if(b.action==='plan_film'){const f=await a.db.rpc('request_film_planning',{p_goal:b.id});return f.error?fail('分镜规划暂不可用'):NextResponse.json({success:true,id:f.data});}
  else if(b.action==='revise_voice')r=await a.db.rpc('revise_company_goal_voice',{p_goal:b.id});
  else if(b.action==='retry')r=await a.db.rpc('retry_company_goal',{p_goal:b.id});
  else if(b.action==='accept'&&uuid.test(b.researchJob||''))r=await a.db.rpc('accept_company_goal',{p_goal:b.id,p_research:b.researchJob});

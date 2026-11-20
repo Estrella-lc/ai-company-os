@@ -22,6 +22,9 @@ on:
       - 'supabase/migrations/*business*.sql'
       - 'supabase/tests/business*.sql'
       - 'supabase/functions/cto-task-worker/creative-*.ts'
+      - 'supabase/functions/cto-task-worker/film-*'
+      - 'ai-company-os-web/scripts/*shot-plan*'
+      - 'ai-company-os-web/scripts/test-film*'
       - 'supabase/migrations/*company_goal*.sql'
       - 'supabase/tests/company_goal*.sql'
       - 'ai-company-os-web/src/app/api/goals/**'
@@ -67,6 +70,8 @@ jobs:
       - run: node scripts/test-business-model-order.mjs
       - run: node scripts/test-text-quality.mjs
       - run: node scripts/test-creative-goal.mjs
+      - run: node scripts/test-film-planning.mjs
+      - run: node scripts/test-shot-plan.mjs
       - run: npx eslint src/app/api/briefs/route.ts src/components/brief-tasks.tsx src/app/api/business/route.ts src/components/business-tasks.tsx src/app/api/goals/route.ts src/app/goals/page.tsx src/components/goal-workspace.tsx src/components/platform-nav.tsx src/app/skills/hub.tsx
       - run: deno check --no-lock --node-modules-dir=auto ../supabase/functions/cto-task-worker/index.ts
       - run: npm run build
