@@ -46,7 +46,7 @@ async function generate(spec,reuse,phase=()=>{},deadline=Date.now()+430000){
  if(!verification.passed||!Object.values(verification.isolation).every(Boolean))throw Error('creative_adapter_unverified');
  return {out,verification,manifest};
 }
-export const creativeFixture={image_prompt_en:'Single fictional adult male office worker, age 28, short neat black hair, navy blue blazer and cream shirt, calm confident expression, clean detailed anime character concept art, one person, head to knees, neutral pale background, crisp cel shaded illustration, no writing, no logo, no watermark',voice_text:'这份方案不是临时赶出来的，每一个数字，我都核对过。',seed:42};
+export const creativeFixture={image_prompt_en:'Single fictional adult male office worker, age 28, short neat black hair, navy blue blazer and cream shirt, calm confident expression, clean detailed anime character concept art, one person, head to knees, neutral pale background, crisp cel shaded illustration, no writing, no logo, no watermark',voice_text:'王总，这份方案不是临时赶出来的，每一个数字，我都核对过。',seed:42};
 export async function runCreativeFixture(destination){
  let stage='search';const phase=s=>{stage=s;console.log('CREATIVE_PHASE',s);};
  let discovery,result;try{discovery=await creativeDiscovery();result=await generate(creativeFixture,null,phase);}catch(e){throw Error('creative_fixture_'+stage+'_'+creativeFailureCode(e));}await mkdir(destination,{recursive:true});
@@ -61,6 +61,7 @@ export async function runCreative(job,api){
   const discovery=job.input.reuse_manifest?{reused:true,trace:[{action:'reuse_company_verified_capability'}],candidates:[]}:await creativeDiscovery();
   const result=await generate(job.input.spec,job.input.reuse_manifest,phase,deadline);phase('upload');const grants=await api({action:'creative_uploads',taskId:job.id,leaseToken:job.lease_token});
   for(const [name,key] of [['character.png','image'],['voice.wav','voice']]){
+   if(key==='image'&&job.input.spec.voice_only)continue;
    const bytes=await readFile(join(result.out,name));if(createHash('sha256').update(bytes).digest('hex')!==result.verification.files[name].sha256)throw Error('local_asset_hash');
    const r=await fetch(grants[key],{method:'PUT',headers:{'Content-Type':key==='image'?'image/png':'audio/wav'},body:bytes,redirect:'error',signal:AbortSignal.timeout(30000)});if(!r.ok)throw Error('private_upload_failed');
   }
