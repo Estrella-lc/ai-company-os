@@ -48,7 +48,7 @@ try{
   console.log(JSON.stringify({fixture:'document_research',catalogFirst:report.trace[0]?.action==='find_skills_catalog',verification:adapter.verification}));process.exit(0);
  }
  if(sandboxOnly){console.log(JSON.stringify(await sandbox(['First-party fixture test'],join(evidence,'sandbox'))));process.exit(0);}
- if(!fixture){const document=await claimDocumentJob(api);if(document){await runDocumentJob(document,api);process.exit(0);}const delivery=(await api({action:'media_claim'})).job;if(delivery){await runSubtitleDelivery(delivery,api);process.exit(0);}}
+ if(!fixture){const film=(await api({action:'film_claim'})).job;if(film){await runFilmJob(film,api);process.exit(0);}const document=await claimDocumentJob(api);if(document){await runDocumentJob(document,api);process.exit(0);}const delivery=(await api({action:'media_claim'})).job;if(delivery){await runSubtitleDelivery(delivery,api);process.exit(0);}}
  job=fixture?{id:'local-fixture',input:{query:'subtitle agent skills',capability:'subtitles'}}:(await api({action:'claim'})).job;
  if(!job){console.log('No eligible skill research job.');process.exit(0);}
  if(job.input.mode==='film_render'){await runFilmJob(job,api);process.exit(0);}
