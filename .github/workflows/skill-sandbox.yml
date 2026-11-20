@@ -42,6 +42,8 @@ jobs:
             ai-company-os-web/scripts/technology-discovery.mjs
             ai-company-os-web/scripts/technology-runner.mjs
             ai-company-os-web/scripts/creative-runner.mjs
+            ai-company-os-web/scripts/film-runner.mjs
+            sandbox/film
             sandbox/creative
             sandbox/integration
             sandbox/subtitle
@@ -98,3 +100,4 @@ jobs:
           path: ${{ runner.temp }}/ai-company-skill-evidence
           if-no-files-found: ignore
           retention-days: 1
+
