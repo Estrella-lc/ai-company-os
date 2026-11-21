@@ -8,6 +8,7 @@ import {runFilmJob} from './film-runner.mjs';
 import {runMotionJob} from './motion-runner.mjs';
 import {runTechnology} from './technology-runner.mjs';
 import {discoverSkills} from './skill-discovery.mjs';
+import {researchComfyWorkflows} from './comfy-research.mjs';
 import {runSubtitleDelivery} from './subtitle-delivery.mjs';
 import {documentResearch,runDocumentJob,claimDocumentJob} from './document-runner.mjs';
 const exec=promisify(execFile),root=resolve('.');
@@ -57,6 +58,9 @@ try{
  if(job.input.mode==='creative_samples'){await runCreative(job,api);process.exit(0);}
  if(job.input.mode?.startsWith('technology_')){await runTechnology(job,api);process.exit(0);}
  const report=await discoverSkills(job.input);
+ if(/comfyui|comfy ui/i.test(job.input.query||'')){
+  report.comfy=await researchComfyWorkflows();report.trace.push(...report.comfy.trace);
+ }
  if(job.input.capability==='documents')await documentResearch(report,evidence);
  const compatible=report.candidates.filter(c=>!c.rejected && /^(MIT|Apache-2\.0|BSD-2-Clause|BSD-3-Clause|ISC)$/.test(c.metadata.license) && /subtitle|caption|\bsrt\b/i.test(c.document+'\n'+c.metadata.references.map(r=>r.content || '').join('\n')));
  if(job.input.capability==='subtitles' && compatible.length){

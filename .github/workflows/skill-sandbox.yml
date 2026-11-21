@@ -38,6 +38,8 @@ jobs:
             ai-company-os-web/scripts/skill-runner.mjs
             ai-company-os-web/scripts/document-runner.mjs
             ai-company-os-web/scripts/skill-discovery.mjs
+            ai-company-os-web/scripts/comfy-research.mjs
+            ai-company-os-web/scripts/comfy-workflow-policy.mjs
             ai-company-os-web/scripts/subtitle-delivery.mjs
             ai-company-os-web/scripts/technology-discovery.mjs
             ai-company-os-web/scripts/technology-runner.mjs

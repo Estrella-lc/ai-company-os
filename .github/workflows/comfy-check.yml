@@ -1,0 +1,22 @@
+name: Comfy workflow checks
+on:
+  pull_request:
+    paths:
+      - 'ai-company-os-web/scripts/*comfy*.mjs'
+      - 'ai-company-os-web/scripts/skill-discovery.mjs'
+      - '.github/workflows/comfy-check.yml'
+permissions:
+  contents: read
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node ai-company-os-web/scripts/test-comfy-workflow-policy.mjs
+      - run: node ai-company-os-web/scripts/test-skill-discovery.mjs
