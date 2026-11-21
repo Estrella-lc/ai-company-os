@@ -1,3 +1,5 @@
+import {motionBridge} from './motion-bridge.ts';
+import {reviewMotion} from './motion-review.ts';
 import {filmBridge} from './film-bridge.ts';
 import {filmPlanningContext,parseFilmPlanning,filmPlanningSchema,filmCandidateError} from './film-planning.ts';
 import {creativeProposalContext,proposalSchema,parseCreativeProposal,parseCreativeReview} from './creative-goal.ts';
@@ -39,6 +41,7 @@ export async function handle(req:Request):Promise<Response>{
   try{
    const raw=await req.text();if(raw.length>200000)return Response.json({error:'Report too large'},{status:413});
    const body=JSON.parse(raw);
+   if(typeof body.action==='string' && body.action.startsWith('motion_'))return await motionBridge(db,rpc,body,skillIdentity);
    if(typeof body.action==='string' && body.action.startsWith('film_'))return await filmBridge(db,rpc,body,skillIdentity);
    if(typeof body.action==='string' && body.action.startsWith('creative_'))return await creativeBridge(db,rpc,body,skillIdentity);
    if(typeof body.action==='string' && body.action.startsWith('document_'))return await documentBridge(db,rpc,body,skillIdentity);
@@ -59,12 +62,14 @@ export async function handle(req:Request):Promise<Response>{
  let job:any;const usage:any[]=[];let lost=false;let timer:ReturnType<typeof setInterval>|undefined;let heartbeatBusy=false;
  try{
   await rpc('reap_expired_chat_replies');
+  try{await rpc('advance_motion_reviews');}catch{console.warn('MOTION_REVIEW_ADVANCE_RETRY');}
   try{await rpc('advance_film_planning');}catch{console.warn('FILM_ADVANCE_RETRY');}
   try{await rpc('advance_company_goals');}catch{console.warn('GOAL_ADVANCE_RETRY');}
   try{await advanceBriefWorkflows(db,rpc);}catch{console.warn('BRIEF_ADVANCE_RETRY');}
   try{await rpc('repair_business_quality_reports');await rpc('advance_business_workflows');}catch{console.warn('BUSINESS_ADVANCE_RETRY');}
   const jobs=await rpc('claim_chat_reply');job=jobs?.[0];if(!job)return Response.json({status:'idle'});
   timer=setInterval(async()=>{if(heartbeatBusy)return;heartbeatBusy=true;try{if(!await rpc('heartbeat_chat_reply',{p_task:job.id,p_token:job.lease_token}))lost=true}catch{lost=true}finally{heartbeatBusy=false}},20000);
+  if(job.input?.motion_review_id)return await reviewMotion(db,rpc,job,gemini,env('GEMINI_MODEL')||'gemini-3.8-flash');
   const {data:agent,error:ae}=await db.from('agents').select('id,code,title,is_active,system_prompt').eq('id',job.assigned_agent_id).single();
   const {data:c,error:ce}=await db.from('conversations').select('id,created_by,agent_id').eq('id',job.conversation_id).single();
   const {data:m,error:me}=await db.from('messages').select('id,conversation_id,sender_type,content,created_at').eq('id',job.request_message_id).single();
