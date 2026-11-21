@@ -43,6 +43,8 @@ jobs:
             ai-company-os-web/scripts/technology-runner.mjs
             ai-company-os-web/scripts/creative-runner.mjs
             ai-company-os-web/scripts/film-runner.mjs
+            ai-company-os-web/scripts/motion-runner.mjs
+            ai-company-os-web/scripts/motion-provider.mjs
             sandbox/film
             sandbox/creative
             sandbox/integration
