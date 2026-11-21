@@ -69,7 +69,7 @@ export async function handle(req:Request):Promise<Response>{
   try{await rpc('repair_business_quality_reports');await rpc('advance_business_workflows');}catch{console.warn('BUSINESS_ADVANCE_RETRY');}
   const jobs=await rpc('claim_chat_reply');job=jobs?.[0];if(!job)return Response.json({status:'idle'});
   timer=setInterval(async()=>{if(heartbeatBusy)return;heartbeatBusy=true;try{if(!await rpc('heartbeat_chat_reply',{p_task:job.id,p_token:job.lease_token}))lost=true}catch{lost=true}finally{heartbeatBusy=false}},20000);
-  if(job.input?.motion_review_id)return await reviewMotion(db,rpc,job,gemini,job.attempt_count>1?(env('GEMINI_FALLBACK_MODEL')||'gemini-3.5-flash-lite'):(env('GEMINI_MODEL')||'gemini-3.8-flash'));
+  if(job.input?.motion_review_id)return await reviewMotion(db,rpc,job,gemini,(job.input.motion_use_fallback===true||job.attempt_count>1)?(env('GEMINI_FALLBACK_MODEL')||'gemini-3.5-flash-lite'):(env('GEMINI_MODEL')||'gemini-3.8-flash'));
   const {data:agent,error:ae}=await db.from('agents').select('id,code,title,is_active,system_prompt').eq('id',job.assigned_agent_id).single();
   const {data:c,error:ce}=await db.from('conversations').select('id,created_by,agent_id').eq('id',job.conversation_id).single();
   const {data:m,error:me}=await db.from('messages').select('id,conversation_id,sender_type,content,created_at').eq('id',job.request_message_id).single();
@@ -200,5 +200,6 @@ export async function handle(req:Request):Promise<Response>{
  }finally{if(timer!==undefined)clearInterval(timer)}
 }
 Deno.serve(handle);
+
 
 
