@@ -5,6 +5,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {runCreative,runCreativeFixture} from './creative-runner.mjs';
 import {runFilmJob} from './film-runner.mjs';
+import {runMotionJob} from './motion-runner.mjs';
 import {runTechnology} from './technology-runner.mjs';
 import {discoverSkills} from './skill-discovery.mjs';
 import {runSubtitleDelivery} from './subtitle-delivery.mjs';
@@ -51,6 +52,7 @@ try{
  if(!fixture){const film=(await api({action:'film_claim'})).job;if(film){await runFilmJob(film,api);process.exit(0);}const document=await claimDocumentJob(api);if(document){await runDocumentJob(document,api);process.exit(0);}const delivery=(await api({action:'media_claim'})).job;if(delivery){await runSubtitleDelivery(delivery,api);process.exit(0);}}
  job=fixture?{id:'local-fixture',input:{query:'subtitle agent skills',capability:'subtitles'}}:(await api({action:'claim'})).job;
  if(!job){console.log('No eligible skill research job.');process.exit(0);}
+ if(job.input.mode==='motion_video'){await runMotionJob(job,api);process.exit(0);}
  if(job.input.mode==='film_render'){await runFilmJob(job,api);process.exit(0);}
  if(job.input.mode==='creative_samples'){await runCreative(job,api);process.exit(0);}
  if(job.input.mode?.startsWith('technology_')){await runTechnology(job,api);process.exit(0);}

@@ -1,0 +1,21 @@
+name: Motion pipeline checks
+on:
+  pull_request:
+    paths:
+      - '**/*motion*'
+      - '.github/workflows/motion-check.yml'
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+      - run: node ai-company-os-web/scripts/test-motion-provider.mjs
+      - run: node ai-company-os-web/scripts/test-motion-bridge.mjs
+      - run: node ai-company-os-web/scripts/test-motion-review.mjs
