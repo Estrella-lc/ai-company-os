@@ -10,7 +10,7 @@ export async function researchComfyWorkflows(fetcher=fetch){
   const repo=await get('repos/'+repository),commit=await get('repos/'+repository+'/commits/'+encodeURIComponent(repo.default_branch));
   if(!/^[a-f0-9]{40}$/.test(commit.sha||''))throw Error('Unpinned workflow source');
   const tree=await get('repos/'+repository+'/git/trees/'+commit.sha+'?recursive=1');
-  const files=(tree.tree||[]).filter(f=>f.type==='blob'&&f.size<=250000&&/\.json$/.test(f.path)&&/wan|ltx/i.test(f.path)&&/image|i2v/i.test(f.path)).slice(0,3);
+  const files=(tree.tree||[]).filter(f=>f.type==='blob'&&f.size<=250000&&/\.json$/.test(f.path)&&/wan|ltx/i.test(f.path)&&/image|i2v/i.test(f.path)&&!/^archived\//.test(f.path)).slice(0,3);
   for(const f of files){
    try{const graph=await get(repository+'/'+commit.sha+'/'+f.path,true);
     let inspection;try{inspection=inspectComfyWorkflow(graph,[]);}catch{inspection={static_passed:false,runtime_verified:false,reason:'API export or installed-node verification required'};}
@@ -21,4 +21,3 @@ export async function researchComfyWorkflows(fetcher=fetch){
  }catch(e){trace.push({action:'official_workflow_search',error:String(e.message).slice(0,120)});}
  return {workflows,trace,runtime_verified:false,execution_gap:'No verified ComfyUI GPU endpoint; do not mark skill executable',third_party_scripts_executed:false};
 }
-

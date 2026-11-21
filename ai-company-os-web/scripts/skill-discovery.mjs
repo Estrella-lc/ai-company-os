@@ -25,7 +25,7 @@ export async function discoverSkills(input,fetcher=fetch){
   const html=await response.text();if(html.length>5000000)throw new Error('Catalog too large');
   const words=String(input.query || '').toLowerCase().split(/\s+/).filter(w=>w.length>2 && !['agent','skills'].includes(w));
   const links=[...html.matchAll(/href=["']\/(?:([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+))["']/g)];
-  catalog=[...new Set(links.filter(m=>words.some(w=>m[0].toLowerCase().includes(w))).map(m=>m[1]+'/'+m[2]))].slice(0,2);
+  catalog=[...new Set(links.filter(m=>comfy?/comfy/i.test(m[0]):words.some(w=>m[0].toLowerCase().includes(w))).map(m=>m[1]+'/'+m[2]))].slice(0,2);
   trace.push({action:'find_skills_catalog',source:'https://skills.sh/',repositories:catalog});
  }catch(e){trace.push({action:'find_skills_catalog',error:String(e.message).slice(0,100)});}
  let found=[];
@@ -40,7 +40,8 @@ export async function discoverSkills(input,fetcher=fetch){
    const tree=await get('/repos/'+repository+'/git/trees/'+commit.sha+'?recursive=1');
    const files=(tree.tree || []).filter(f=>f.type==='blob' && !f.path.split('/').includes('..'));
    const score=path=>{const p=path.toLowerCase();return (input.capability==='subtitles'?(/caption|subtitle|srt/.test(p)?20:0):input.capability==='video'?(/video|ffmpeg|remotion/.test(p)?20:0):input.capability==='documents'?(/pdf|docx/.test(p)?20:0):(/develop|coding|react/.test(p)?10:0));};
-   const skills=files.filter(f=>/(^|\/)SKILL\.md$/.test(f.path) && f.size<=40000).sort((a,b)=>(comfy?Number(/comfy|image.to.video|wan|ltx/i.test(b.path))-Number(/comfy|image.to.video|wan|ltx/i.test(a.path)):0)||score(b.path)-score(a.path) || a.path.localeCompare(b.path));
+   const comfyScore=path=>(/(?:^|\/)comfy\/SKILL\.md$/i.test(path)?100:0)+(/comfyui|image.to.video|wan|ltx/i.test(path)?30:0)-(/sdk|router/i.test(path)?50:0);
+   const skills=files.filter(f=>/(^|\/)SKILL\.md$/.test(f.path) && f.size<=40000).sort((a,b)=>(comfy?comfyScore(b.path)-comfyScore(a.path):0)||score(b.path)-score(a.path) || a.path.localeCompare(b.path));
    if(!skills.length){trace.push({repository,result:'no_skill_document'});continue;}
    const source=skills[0],document=await get(repository+'/'+commit.sha+'/'+source.path,true);if(document.length>40000)throw new Error('Skill document too large');
    const scan=scanSkill(document),folder=source.path.includes('/')?source.path.slice(0,source.path.lastIndexOf('/')+1):'';
@@ -55,4 +56,3 @@ export async function discoverSkills(input,fetcher=fetch){
  }
  return {candidates,trace};
 }
-
