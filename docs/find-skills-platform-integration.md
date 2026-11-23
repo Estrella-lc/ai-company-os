@@ -1,6 +1,6 @@
 # Platform capability discovery policy
 
-The user's local `find-skills` skill was confirmed readable at `C:/Users/16964/.codex/skills/find-skills/SKILL.md` on 2026-11-14. This is installed in the coding assistant, not automatically in the hosted company workers.
+The user's local `find-skills` skill was confirmed readable in the coding assistant's skill directory on 2026-11-14. This is installed in the coding assistant, not automatically in the hosted company workers.
 
 When a company employee identifies a capability gap, prefer the find-skills discovery workflow: check the skills.sh catalog, search relevant skills and source repositories, inspect reputation and license, pin the source version, and validate a representative task before registering a shared company capability. Installation counts and stars are discovery signals, never evidence of task quality or authority to execute scripts.
 
